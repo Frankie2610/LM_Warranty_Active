@@ -1,12 +1,12 @@
 {
   "name": "lm-warranty-vercel-no-appproxy",
-  "version": "6.0.0",
+  "version": "8.3.0",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "dependencies": {
-    "firebase-admin": "^14.2.0"
+    "firebase-admin": "14.2.0"
   }
 }

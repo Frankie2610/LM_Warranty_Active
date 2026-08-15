@@ -1,4 +1,4 @@
-# L&M Warranty V8.2 — Shopify OTP cho cả Admin và Khách
+# L&M Warranty V8.3 — Shopify OTP cho cả Admin và Khách
 
 ## Điểm thay đổi chính
 
@@ -385,7 +385,7 @@ Browser không truy cập RTDB trực tiếp.
 Firebase Admin SDK trên Vercel tiếp tục hoạt động.
 
 
-## V8.2 Theme Check fix
+## V8.3 Theme Check fix
 
 Fixed Shopify `LiquidHTMLSyntaxError` around the edit form by replacing block-level
 `div` wrappers nested inside `label` with inline `span` wrappers for
@@ -394,7 +394,7 @@ Fixed Shopify `LiquidHTMLSyntaxError` around the edit form by replacing block-le
 Also updated stale Firebase Authentication wording in the Admin UI.
 
 
-## V8.2 Shopify customer-tag fix
+## V8.3 Shopify customer-tag fix
 
 Admin security tag format is now:
 
@@ -413,3 +413,47 @@ openssl rand -hex 32
 ```
 
 The old colon format `warranty-admin-key:...` is no longer used.
+
+
+## V8.3 — Vercel ERR_REQUIRE_ESM fix
+
+Removed the unused Firebase Authentication import from `lib/firebase.js`.
+
+V8/V8.3 does not use Firebase Authentication, so this import was unnecessary:
+
+```js
+import { getAuth } from "firebase-admin/auth";
+```
+
+It also initialized:
+
+```js
+export const adminAuth = getAuth(app);
+```
+
+Both have been removed.
+
+The backend now imports only:
+
+```js
+firebase-admin/app
+firebase-admin/database
+```
+
+This avoids loading the Firebase Auth/App Check dependency path that can reach
+`jwks-rsa` / `jose`.
+
+`package.json` is also pinned to:
+
+```json
+{
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "firebase-admin": "14.2.0"
+  }
+}
+```
+
+After pushing V8.3, redeploy Vercel with a clean dependency install.
