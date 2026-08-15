@@ -1,0 +1,10 @@
+node_modules/
+.vercel/
+.env
+.env.local
+.env.production
+.env.development
+service-account*.json
+*firebase-adminsdk*.json
+*.log
+.DS_Store
