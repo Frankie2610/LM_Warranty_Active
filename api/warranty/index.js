@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return json(res, 200, {
       ok: true,
       service: "lm-warranty-vercel",
-      version: "8.3.0",
+      version: "8.9.0",
       auth: "shopify-customer-account",
       appProxy: false
     });
