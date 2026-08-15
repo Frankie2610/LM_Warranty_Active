@@ -1,16 +1,7 @@
 {% comment %}
-  L&M WARRANTY ACTIVATION — V7
-  Customer authentication: Shopify Customer Account / OTP.
-  No warranty-number input.
-
-  Match criteria:
-  - Shopify account email rendered by Liquid after sign-in
-  - Brand
-  - Phone number
-  - Purchase date
-
-  IMPORTANT:
-  Replace API_BASE after Vercel deployment.
+  L&M WARRANTY ACTIVATION — V8.9 FRESH UI
+  Shopify Customer Account / OTP.
+  Customer matches purchase by brand, phone and purchase date.
 {% endcomment %}
 
 <script>
@@ -42,47 +33,53 @@
     }
   </script>
 
+  
   <div class="lmwa-c-card">
-    <header>
-      <div class="lmwa-c-kicker">L&amp;M WARRANTY</div>
-      <h1>KÍCH HOẠT BẢO HÀNH</h1>
-      <p>
-        Chọn thương hiệu, nhập số điện thoại và ngày mua.
-        Hệ thống sẽ đối chiếu với email tài khoản Shopify vừa xác thực.
-      </p>
-    </header>
-
-    <div class="lmwa-c-verified-account">
-      <div>
-        <span>Email tài khoản Shopify</span>
-        <strong>{{ customer.email | escape }}</strong>
+    <aside class="lmwa-c-side">
+      <div class="lmwa-c-side-copy">
+        <div class="lmwa-c-kicker">BẢO HÀNH CHÍNH HÃNG</div>
+        <h1>Kích hoạt<br>bảo hành</h1>
+        <p>
+          Hoàn tất thông tin mua hàng để xác nhận hiệu lực bảo hành cho sản phẩm.
+        </p>
       </div>
 
-      <shopify-account menu="customer-account-main-menu"></shopify-account>
-    </div>
-
-    <div class="lmwa-c-progress">
-      <div class="done">
-        <span>01</span>
-        <strong>Email đã xác thực</strong>
+      <div class="lmwa-c-verified-account">
+        <div>
+          <span>Email đã xác thực</span>
+          <strong>{{ customer.email | escape }}</strong>
+        </div>
+        <shopify-account menu="customer-account-main-menu"></shopify-account>
       </div>
 
-      <i></i>
-
-      <div class="active" data-step="2">
-        <span>02</span>
-        <strong>Đối chiếu giao dịch</strong>
+      <div class="lmwa-c-progress">
+        <div class="done">
+          <span>01</span>
+          <strong>Xác thực</strong>
+        </div>
+        <i></i>
+        <div class="active" data-step="2">
+          <span>02</span>
+          <strong>Đối chiếu</strong>
+        </div>
+        <i></i>
+        <div data-step="3">
+          <span>03</span>
+          <strong>Hoàn tất</strong>
+        </div>
       </div>
+    </aside>
 
-      <i></i>
+    <main class="lmwa-c-main">
+      <header class="lmwa-c-main-head">
+        <span>THÔNG TIN KÍCH HOẠT</span>
+        <h2>Đối chiếu giao dịch</h2>
+        <p>
+          Nhập đúng thông tin đã dùng khi mua hàng. Email xác thực sẽ được đối chiếu tự động.
+        </p>
+      </header>
 
-      <div data-step="3">
-        <span>03</span>
-        <strong>Hoàn tất</strong>
-      </div>
-    </div>
-
-    <form id="customer-form" novalidate>
+      <form id="customer-form" novalidate>
 
       <label>
         <span>Thương hiệu *</span>
@@ -99,7 +96,7 @@
           <option value="MISSONI">MISSONI</option>
         </select>
 
-        <small>Chọn đúng thương hiệu trên sản phẩm đã mua.</small>
+        <small>Chọn thương hiệu đúng với sản phẩm trên hóa đơn hoặc phiếu mua hàng.</small>
       </label>
 
       <label>
@@ -124,64 +121,76 @@
           required
         >
 
-        <small>Ngày mua phải trùng với thông tin phiếu bảo hành đã được tạo.</small>
+        <small>Ngày mua cần trùng với thông tin được ghi nhận khi tạo hồ sơ bảo hành.</small>
       </label>
 
       <div class="lmwa-c-match-note">
-        <strong>Thông tin được đối chiếu</strong>
+        <strong>Điều kiện kích hoạt</strong>
 
         <span>
-          Thương hiệu + Số điện thoại + Ngày mua + Email tài khoản Shopify.
+          Thương hiệu, số điện thoại, ngày mua và email tài khoản phải trùng khớp hồ sơ.
         </span>
       </div>
 
       <button id="a-submit" type="submit">
-        KÍCH HOẠT BẢO HÀNH ONLINE
+        KÍCH HOẠT BẢO HÀNH
       </button>
     </form>
 
-    <div id="a-message" class="lmwa-c-message" hidden></div>
-
-    <section id="a-result" class="lmwa-c-result" hidden></section>
+      <div id="a-message" class="lmwa-c-message" hidden></div>
+      <section id="a-result" class="lmwa-c-result" hidden></section>
+    </main>
   </div>
+
+
+
 
 {% else %}
 
+  
   <div class="lmwa-c-card lmwa-login-card">
-    <header>
-      <div class="lmwa-c-kicker">L&amp;M WARRANTY</div>
-      <h1>KÍCH HOẠT BẢO HÀNH</h1>
+    <aside class="lmwa-c-side">
+      <div class="lmwa-c-side-copy">
+        <div class="lmwa-c-kicker">BẢO HÀNH CHÍNH HÃNG</div>
+        <h1>Kích hoạt<br>bảo hành</h1>
+        <p>
+          Xác thực email để bắt đầu quá trình kích hoạt bảo hành online.
+        </p>
+      </div>
 
-      <p>
-        Vui lòng xác thực email bằng tài khoản khách hàng Shopify trước khi
-        kích hoạt bảo hành online.
-      </p>
-    </header>
+      <div class="lmwa-c-login-note">
+        <span>01</span>
+        <div>
+          <strong>Xác thực email</strong>
+          <small>Mã xác thực được gửi trực tiếp đến email đăng ký.</small>
+        </div>
+      </div>
+    </aside>
 
-    <div class="lmwa-shopify-auth">
-      <div class="lmwa-c-kicker">XÁC THỰC EMAIL</div>
+    <main class="lmwa-c-main lmwa-c-main-login">
+      <div class="lmwa-shopify-auth">
+        <span class="lmwa-c-main-kicker">BẮT ĐẦU</span>
+        <h2>Xác thực tài khoản khách hàng</h2>
+        <p>
+          Sau khi xác thực thành công, trang sẽ tự tải lại để bạn tiếp tục nhập thông tin mua hàng.
+        </p>
 
-      <h2>Tiếp tục bằng mã OTP</h2>
-
-      <p>
-        Shopify sẽ thực hiện bước đăng nhập/xác thực tài khoản.
-        Sau khi hoàn tất, trang sẽ tự tải lại để tiếp tục kích hoạt.
-      </p>
-
-      <shopify-account
-        id="lmwa-customer-account"
-        menu="customer-account-main-menu"
-      >
-        <button
-          type="button"
-          slot="signed-out-avatar"
-          class="lmwa-shopify-login-button"
+        <shopify-account
+          id="lmwa-customer-account"
+          menu="customer-account-main-menu"
         >
-          XÁC THỰC EMAIL SHOPIFY
-        </button>
-      </shopify-account>
-    </div>
+          <button
+            type="button"
+            slot="signed-out-avatar"
+            class="lmwa-shopify-login-button"
+          >
+            GỬI MÃ XÁC THỰC
+          </button>
+        </shopify-account>
+      </div>
+    </main>
   </div>
+
 
   <script>
   (function(){
@@ -218,11 +227,8 @@
 
 <script>
 (function(){
-  /* =======================================================
-     CHANGE THIS AFTER VERCEL DEPLOYMENT
-  ======================================================= */
-  const API_BASE =
-    'https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app/api/warranty';
+  /* Production API */
+  const API_BASE = 'https://lm-warranty-active.vercel.app/api/warranty';
 
   const customerData=JSON.parse(
     document.getElementById('lmwa-shopify-customer').textContent||'{}'
@@ -339,14 +345,27 @@
 
       result.hidden=false;
 
-      result.innerHTML=`
-        <div class="lmwa-c-kicker">KÍCH HOẠT HOÀN TẤT</div>
+      const alreadyActivated=Boolean(data.alreadyActivated);
 
-        <h2>Bảo hành đã được kích hoạt</h2>
+      const activatedDate=data.activatedAt
+        ?new Date(data.activatedAt).toLocaleDateString('vi-VN')
+        :'';
+
+      result.innerHTML=`
+        <div class="lmwa-c-kicker">
+          ${alreadyActivated?'BẢO HÀNH ĐÃ CÓ HIỆU LỰC':'KÍCH HOẠT HOÀN TẤT'}
+        </div>
+
+        <h2>
+          ${alreadyActivated
+            ?'Phiếu bảo hành đã được kích hoạt trước đó'
+            :'Bảo hành đã được kích hoạt'}
+        </h2>
 
         <p>
-          Thông tin giao dịch đã được đối chiếu thành công.
-          Bảo hành online của sản phẩm hiện đã có hiệu lực.
+          ${alreadyActivated
+            ?'Thông tin mua hàng đã được đối chiếu thành công. Phiếu này đã có hiệu lực và không cần kích hoạt lại.'
+            :'Thông tin mua hàng đã được đối chiếu thành công. Bảo hành online của sản phẩm hiện đã có hiệu lực.'}
         </p>
 
         <div class="lmwa-result-grid">
@@ -366,9 +385,16 @@
           </div>
 
           <div>
-            <span>Email xác thực</span>
+            <span>Email khách hàng</span>
             <strong>${esc(customerData.email||'—')}</strong>
           </div>
+
+          ${alreadyActivated&&activatedDate?`
+          <div>
+            <span>Ngày kích hoạt</span>
+            <strong>${esc(activatedDate)}</strong>
+          </div>
+          `:''}
         </div>
       `;
 
@@ -391,486 +417,488 @@
 
 {% endif %}
 
+
+
+
+
 <style>
+/* ==========================================================
+   L&M WARRANTY — FRESH CUSTOMER UI
+   ========================================================== */
+
 .lmwa-customer{
-  --g:rgb(39 70 49);
-  --gh:rgb(31 58 40);
-  --gs:rgba(39,70,49,.055);
-  --gb:rgba(39,70,49,.18);
-  --text:#202520;
-  --muted:#747a75;
-  --success:#2f6b43;
-  --success-bg:#eef7f0;
-  --success-border:#cfe3d4;
-  --danger:#874742;
-  --danger-bg:#fff4f2;
-  --danger-border:#efd3ce;
+  --ink:#172019;
+  --text:#303a33;
+  --muted:#778078;
+  --forest:#23432f;
+  --forest-2:#305a3d;
+  --forest-3:#426e4e;
+  --sage:#e9f0ea;
+  --ivory:#f4f3ee;
+  --paper:#fff;
+  --line:#d7ded8;
+  --line-strong:#b8c4ba;
+  --success:#2d5c3c;
+  --success-bg:#e9f2eb;
+  --danger:#8b4945;
+  --danger-bg:#f8eeee;
 
-  max-width:790px;
-  margin:0 auto;
-  padding:56px 18px 72px;
-
-  color:var(--text);
-}
-
-.lmwa-customer *{
   box-sizing:border-box;
+  width:100%;
+  padding:46px 18px 72px;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(35,67,47,.08),transparent 27%),
+    var(--ivory);
+  color:var(--text);
+  font-family:inherit;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
 }
+
+.lmwa-customer *,
+.lmwa-customer *:before,
+.lmwa-customer *:after{box-sizing:border-box}
+
+.lmwa-customer [hidden]{display:none!important}
+
+.lmwa-customer button,
+.lmwa-customer input,
+.lmwa-customer select{font:inherit}
 
 .lmwa-c-card{
-  position:relative;
-
-  padding:52px 56px;
-
+  display:grid;
+  grid-template-columns:minmax(280px,39%) minmax(0,61%);
+  width:min(980px,100%);
+  min-height:590px;
+  margin:0 auto;
+  overflow:hidden;
+  border:1px solid rgba(35,67,47,.13);
+  border-radius:22px;
   background:#fff;
-
-  border:1px solid #dfe2df;
-  border-radius:6px;
-
-  box-shadow:0 20px 60px rgba(0,0,0,.04);
+  box-shadow:0 28px 70px rgba(26,39,30,.11);
 }
 
-.lmwa-c-card:before{
-  content:"";
-
-  position:absolute;
-
-  top:0;
-  left:56px;
-  right:56px;
-
-  height:2px;
-
-  background:var(--g);
+/* ---------- Dark editorial side ---------- */
+.lmwa-c-side{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:36px;
+  min-width:0;
+  padding:39px 34px 34px;
+  background:
+    radial-gradient(circle at 90% 5%,rgba(255,255,255,.11),transparent 29%),
+    radial-gradient(circle at 12% 90%,rgba(255,255,255,.06),transparent 28%),
+    linear-gradient(155deg,#1d3927 0%,#264932 54%,#315a3d 100%);
+  color:#fff;
 }
 
-.lmwa-c-card>header{
-  max-width:590px;
-
-  margin:0 auto 34px;
-
-  text-align:center;
+.lmwa-c-kicker,
+.lmwa-c-main-kicker{
+  display:inline-block;
+  color:rgba(255,255,255,.64);
+  font-size:8px;
+  font-weight:840;
+  letter-spacing:.16em;
+  text-transform:uppercase;
 }
 
-.lmwa-c-kicker{
-  color:var(--g);
-
-  font-size:11px;
-  font-weight:650;
-
-  letter-spacing:.19em;
+.lmwa-c-side h1{
+  margin:14px 0 0;
+  color:#fff;
+  font-size:clamp(34px,5vw,50px);
+  font-weight:710;
+  line-height:.98;
+  letter-spacing:-.045em;
+  text-transform:none;
 }
 
-.lmwa-c-card h1{
-  margin:15px 0 0;
-
-  font-size:31px;
-  font-weight:520;
-
-  letter-spacing:.05em;
+.lmwa-c-side-copy>p{
+  max-width:310px;
+  margin:18px 0 0;
+  color:rgba(255,255,255,.68);
+  font-size:12px;
+  font-weight:500;
+  line-height:1.75;
 }
 
-.lmwa-c-card header p,
-.lmwa-shopify-auth p,
-.lmwa-c-result p{
-  color:var(--muted);
-
-  font-size:14px;
-
-  line-height:1.7;
-}
-
+/* account */
 .lmwa-c-verified-account{
   display:flex;
   align-items:center;
   justify-content:space-between;
-
-  gap:16px;
-
-  margin-bottom:27px;
-  padding:14px 15px 14px 17px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #f7fbf8,
-      #f1f7f2
-    );
-
-  border:1px solid var(--success-border);
-  border-radius:5px;
+  gap:12px;
+  padding:14px 15px;
+  border:1px solid rgba(255,255,255,.17);
+  border-radius:12px;
+  background:rgba(255,255,255,.07);
 }
-
 .lmwa-c-verified-account span,
-.lmwa-c-verified-account strong{
-  display:block;
-}
-
+.lmwa-c-verified-account strong{display:block}
 .lmwa-c-verified-account span{
-  color:#69806f;
-
-  font-size:10px;
+  color:rgba(255,255,255,.55);
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
 }
-
 .lmwa-c-verified-account strong{
-  margin-top:4px;
-
-  color:var(--success);
-
-  font-size:13px;
+  max-width:220px;
+  margin-top:5px;
+  overflow:hidden;
+  color:#fff;
+  font-size:11px;
   font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
+/* progress */
 .lmwa-c-progress{
   display:flex;
   align-items:center;
-
-  margin-bottom:31px;
-  padding:0 6px 25px;
-
-  border-bottom:1px solid #eceeec;
+  gap:8px;
 }
-
 .lmwa-c-progress>div{
-  min-width:90px;
-
-  color:#999e9a;
-
-  text-align:center;
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:5px;
 }
-
-.lmwa-c-progress span,
-.lmwa-c-progress strong{
-  display:block;
-}
-
 .lmwa-c-progress span{
-  font-size:10px;
-
-  letter-spacing:.16em;
+  display:flex;
+  width:28px;
+  height:28px;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:50%;
+  color:rgba(255,255,255,.66);
+  font-size:8px;
+  font-weight:800;
 }
-
 .lmwa-c-progress strong{
-  margin-top:5px;
-
-  font-size:11px;
-  font-weight:550;
+  color:rgba(255,255,255,.58);
+  font-size:8px;
+  font-weight:720;
 }
-
-.lmwa-c-progress .active,
-.lmwa-c-progress .done{
-  color:var(--g);
+.lmwa-c-progress .active span{
+  border-color:#fff;
+  background:#fff;
+  color:var(--forest);
 }
-
+.lmwa-c-progress .active strong{color:#fff}
+.lmwa-c-progress .done span{
+  border-color:rgba(255,255,255,.45);
+  background:rgba(255,255,255,.14);
+  color:#fff;
+}
 .lmwa-c-progress i{
-  flex:1;
-
+  width:22px;
   height:1px;
-
-  margin:0 8px 15px;
-
-  background:#dfe2df;
+  margin-top:-14px;
+  background:rgba(255,255,255,.22);
 }
 
+/* ---------- Main ---------- */
+.lmwa-c-main{
+  min-width:0;
+  padding:40px 44px 42px;
+  background:#fff;
+}
+
+.lmwa-c-main-head{
+  padding-bottom:23px;
+  border-bottom:1px solid #e5e8e6;
+}
+.lmwa-c-main-head>span,
+.lmwa-c-main-kicker{
+  color:var(--forest-2);
+  font-size:8px;
+  font-weight:840;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.lmwa-c-main-head h2,
+.lmwa-shopify-auth h2{
+  margin:8px 0 0;
+  color:var(--ink);
+  font-size:27px;
+  font-weight:720;
+  line-height:1.15;
+  letter-spacing:-.03em;
+}
+.lmwa-c-main-head p,
+.lmwa-shopify-auth p{
+  margin:9px 0 0;
+  color:#737c75;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.65;
+}
+
+/* ---------- Form ---------- */
 #customer-form{
   display:grid;
+  gap:17px;
+  margin-top:25px;
+}
 
-  gap:20px;
+#customer-form label{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  margin:0;
 }
 
 #customer-form label>span{
   display:block;
-
-  margin-bottom:8px;
-
-  font-size:13px;
-  font-weight:600;
+  margin:0 0 7px;
+  color:#404b43;
+  font-size:10px;
+  font-weight:720;
 }
 
 #customer-form label>small{
   display:block;
-
-  margin-top:7px;
-
-  color:#808681;
-
-  font-size:11px;
-
-  line-height:1.5;
+  margin:6px 2px 0;
+  color:#8a928c;
+  font-size:9px;
+  font-weight:500;
+  line-height:1.45;
 }
 
 #customer-form input,
 #customer-form select{
   width:100%;
-  height:55px;
-
-  padding:0 15px;
-
+  height:54px;
+  padding:0 14px;
+  border:1.5px solid var(--line-strong);
+  border-radius:10px;
   outline:none;
-
-  border:1px solid #d5d9d5;
-  border-radius:4px;
-
   background:#fff;
-
-  color:var(--text);
-
-  font:inherit;
-  font-size:16px;
+  color:#202a22;
+  box-shadow:0 1px 1px rgba(31,42,34,.015);
+  font-size:13px;
+  font-weight:600;
+  transition:border-color .15s ease,box-shadow .15s ease;
 }
+
+#customer-form input::placeholder{color:#9ca49e;font-weight:500}
+
+#customer-form input:hover,
+#customer-form select:hover{border-color:#8f9f93}
 
 #customer-form input:focus,
 #customer-form select:focus{
-  border-color:var(--g);
-
-  box-shadow:
-    0 0 0 3px var(--gs);
+  border-color:var(--forest-2);
+  box-shadow:0 0 0 3px rgba(48,90,61,.10);
 }
 
+#customer-form select{
+  -webkit-appearance:menulist!important;
+  appearance:auto!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  cursor:pointer!important;
+}
+
+#customer-form select option{
+  background:#fff;
+  color:#1e2820;
+}
+
+/* note */
 .lmwa-c-match-note{
-  padding:15px 16px;
-
-  background:#f8faf8;
-
-  border:1px solid #e3e7e3;
-  border-radius:5px;
+  padding:13px 14px;
+  border-left:3px solid var(--forest-2);
+  border-radius:0 9px 9px 0;
+  background:#f0f4f1;
 }
-
 .lmwa-c-match-note strong,
-.lmwa-c-match-note span{
-  display:block;
-}
-
+.lmwa-c-match-note span{display:block}
 .lmwa-c-match-note strong{
-  color:#414742;
-
-  font-size:12px;
+  color:#395140;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
 }
-
 .lmwa-c-match-note span{
   margin-top:5px;
-
-  color:var(--muted);
-
-  font-size:11px;
-
+  color:#69736c;
+  font-size:10px;
   line-height:1.55;
 }
 
+/* main CTA */
 #a-submit,
 .lmwa-shopify-login-button{
   width:100%;
-  min-height:57px;
-
-  padding:14px 20px;
-
-  border:1px solid var(--g);
-  border-radius:4px;
-
-  background:var(--g);
-
+  min-height:54px;
+  border:1px solid var(--forest);
+  border-radius:10px;
+  background:var(--forest);
   color:#fff;
-
   cursor:pointer;
-
-  font:inherit;
-  font-size:13px;
-  font-weight:650;
-
-  letter-spacing:.085em;
+  box-shadow:0 9px 18px rgba(35,67,47,.14);
+  font-size:9px;
+  font-weight:840;
+  letter-spacing:.10em;
 }
-
 #a-submit:hover,
-.lmwa-shopify-login-button:hover{
-  background:var(--gh);
-}
+.lmwa-shopify-login-button:hover{background:var(--forest-2)}
+#a-submit:disabled{opacity:.6;cursor:not-allowed}
 
-#a-submit:disabled{
-  opacity:.6;
-
-  cursor:wait;
-}
-
+/* messages/result */
 .lmwa-c-message{
-  margin-top:17px;
-  padding:13px 15px;
-
-  border-radius:4px;
-
-  font-size:12px;
-
-  line-height:1.6;
+  margin-top:14px;
+  padding:12px 14px;
+  border-radius:9px;
+  font-size:10px;
+  font-weight:560;
+  line-height:1.55;
 }
-
-.lmwa-c-message.error{
-  color:var(--danger);
-
-  background:var(--danger-bg);
-
-  border:1px solid var(--danger-border);
-}
-
-.lmwa-c-message.success{
-  color:var(--success);
-
-  background:var(--success-bg);
-
-  border:1px solid var(--success-border);
-}
+.lmwa-c-message.success{border:1px solid #b8cebc;background:var(--success-bg);color:var(--success)}
+.lmwa-c-message.error{border:1px solid #dec1bf;background:var(--danger-bg);color:var(--danger)}
+.lmwa-c-message.info{border:1px solid #cdd4ce;background:#f1f3f1;color:#566159}
 
 .lmwa-c-result{
-  margin-top:25px;
-  padding:31px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #fbfdfb,
-      var(--success-bg)
-    );
-
-  border:1px solid var(--success-border);
-  border-radius:5px;
-
-  text-align:center;
+  margin-top:16px;
+  padding:20px;
+  border:1px solid #b9cdbd;
+  border-radius:13px;
+  background:#edf4ee;
 }
-
+.lmwa-c-result .lmwa-c-kicker{color:#4b6d55}
 .lmwa-c-result h2{
-  margin:10px 0 0;
-
-  font-size:23px;
-  font-weight:540;
+  margin:8px 0 0;
+  color:#25452f;
+  font-size:20px;
+  font-weight:720;
+}
+.lmwa-c-result>p{
+  margin:7px 0 0;
+  color:#647068;
+  font-size:10px;
+  line-height:1.6;
 }
 
 .lmwa-result-grid{
   display:grid;
-
-  grid-template-columns:
-    repeat(2,minmax(0,1fr));
-
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:1px;
-
-  margin-top:23px;
-
+  margin-top:15px;
   overflow:hidden;
-
-  background:var(--success-border);
-
-  border:1px solid var(--success-border);
-  border-radius:5px;
-
-  text-align:left;
+  border:1px solid #c6d6c9;
+  border-radius:10px;
+  background:#c6d6c9;
 }
-
-.lmwa-result-grid>div{
-  padding:15px;
-
-  background:#fff;
-}
-
+.lmwa-result-grid>div{padding:12px;background:#fff}
 .lmwa-result-grid span,
-.lmwa-result-grid strong{
-  display:block;
-}
-
+.lmwa-result-grid strong{display:block}
 .lmwa-result-grid span{
-  color:var(--muted);
-
-  font-size:10px;
+  color:#818a83;
+  font-size:8px;
+  font-weight:780;
+  text-transform:uppercase;
 }
-
 .lmwa-result-grid strong{
   margin-top:5px;
-
-  color:#364039;
-
-  font-size:12px;
+  color:#263129;
+  font-size:11px;
+  font-weight:680;
+  word-break:break-word;
 }
 
+/* ---------- Login ---------- */
+.lmwa-login-card{min-height:510px}
+
+.lmwa-c-login-note{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  background:rgba(255,255,255,.07);
+}
+.lmwa-c-login-note>span{
+  display:flex;
+  width:29px;
+  height:29px;
+  flex:0 0 29px;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#fff;
+  color:var(--forest);
+  font-size:8px;
+  font-weight:820;
+}
+.lmwa-c-login-note strong,
+.lmwa-c-login-note small{display:block}
+.lmwa-c-login-note strong{color:#fff;font-size:10px;font-weight:720}
+.lmwa-c-login-note small{
+  margin-top:4px;
+  color:rgba(255,255,255,.58);
+  font-size:9px;
+  line-height:1.5;
+}
+
+.lmwa-c-main-login{
+  display:flex;
+  align-items:center;
+}
 .lmwa-shopify-auth{
-  padding:31px;
-
-  background:#fafbfa;
-
-  border:1px solid var(--gb);
-  border-radius:5px;
-
-  text-align:center;
-}
-
-.lmwa-shopify-auth h2{
-  margin:10px 0 0;
-
-  font-size:22px;
-  font-weight:540;
-}
-
-#lmwa-customer-account{
-  display:block;
-
   width:100%;
-
-  margin-top:20px;
-
-  --shopify-account-color-accent:rgb(39 70 49);
-  --shopify-account-radius-base:4px;
-  --shopify-account-radius-dialog:8px;
 }
+.lmwa-shopify-auth .lmwa-c-main-kicker{display:block}
+#lmwa-customer-account{display:block;margin-top:21px}
 
-#lmwa-customer-account::part(signed-out-avatar){
-  width:100%;
-  height:auto;
-
-  padding:0;
-
-  border:0;
-  border-radius:4px;
-
-  background:var(--g);
-}
-
-@media(max-width:600px){
-
-  .lmwa-customer{
-    padding:24px 10px 42px;
-  }
-
+/* ---------- Responsive ---------- */
+@media(max-width:760px){
+  .lmwa-customer{padding:20px 10px 46px}
   .lmwa-c-card{
-    padding:35px 17px;
-
-    box-shadow:none;
-  }
-
-  .lmwa-c-card:before{
-    left:17px;
-    right:17px;
-  }
-
-  .lmwa-c-card h1{
-    font-size:25px;
-  }
-
-  .lmwa-c-verified-account{
-    align-items:flex-start;
-  }
-
-  .lmwa-c-progress>div{
-    min-width:65px;
-  }
-
-  .lmwa-c-progress strong{
-    font-size:9px;
-  }
-
-  .lmwa-c-result,
-  .lmwa-shopify-auth{
-    padding:25px 15px;
-  }
-
-  .lmwa-result-grid{
     grid-template-columns:1fr;
+    min-height:0;
+    border-radius:16px;
   }
-
+  .lmwa-c-side{
+    gap:24px;
+    padding:28px 22px 22px;
+  }
+  .lmwa-c-side h1{
+    font-size:36px;
+    line-height:1;
+  }
+  .lmwa-c-side-copy>p{max-width:none}
+  .lmwa-c-verified-account{margin-top:0}
+  .lmwa-c-progress{margin-top:0}
+  .lmwa-c-main{padding:28px 22px 30px}
+  .lmwa-c-main-login{min-height:330px}
 }
 
+@media(max-width:480px){
+  .lmwa-customer{padding:9px 6px 32px}
+  .lmwa-c-card{border-radius:13px}
+  .lmwa-c-side{padding:24px 16px 19px}
+  .lmwa-c-side h1{font-size:32px}
+  .lmwa-c-side-copy>p{font-size:11px}
+  .lmwa-c-verified-account{padding:12px}
+  .lmwa-c-verified-account strong{max-width:210px}
+  .lmwa-c-progress{gap:5px}
+  .lmwa-c-progress i{width:14px}
+  .lmwa-c-progress strong{font-size:7px}
+  .lmwa-c-main{padding:24px 15px 26px}
+  .lmwa-c-main-head h2,
+  .lmwa-shopify-auth h2{font-size:23px}
+  #customer-form{gap:15px}
+  #customer-form input,
+  #customer-form select{
+    height:51px;
+    font-size:16px;
+  }
+  .lmwa-result-grid{grid-template-columns:1fr}
+}
 </style>

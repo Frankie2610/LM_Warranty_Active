@@ -1,19 +1,7 @@
 {% comment %}
-  L&M WARRANTY ADMIN — V8
-  AUTH: Shopify Customer Account / OTP + Liquid tag gate.
-
-  Required customer tags on each Admin Shopify customer:
-  1) warranty-admin
-  2) warranty-admin-key-YOUR_RANDOM_KEY
-
-  The random key after "warranty-admin-key-" must exactly equal
-  Vercel env WARRANTY_ADMIN_ACCESS_KEY.
-
-  Firebase Authentication is NOT used.
-  Firebase is only the Realtime Database behind Vercel Admin SDK.
-
-  IMPORTANT:
-  Replace API_BASE in the script after Vercel deployment.
+  L&M WARRANTY ADMIN — V8.9 FRESH UI
+  Shopify Customer Account / OTP + customer tag authorization.
+  Production API endpoint is configured below.
 {% endcomment %}
 
 <script>
@@ -65,43 +53,32 @@
 <section id="lmwa-admin">
       <header class="lmwa-top">
         <div>
-          <div class="lmwa-kicker">L&amp;M WARRANTY OPERATIONS</div>
-          <h1>QUẢN LÝ BẢO HÀNH</h1>
-          <p>Tạo phiếu, tra cứu, chỉnh sửa và quản lý trạng thái bảo hành trên một giao diện vận hành tập trung.</p>
+                    <h1>QUẢN LÝ BẢO HÀNH</h1>
+          <p>Quản lý toàn bộ vòng đời bảo hành từ khởi tạo, tra cứu đến kích hoạt và cập nhật thông tin trong một không gian vận hành tập trung.</p>
         </div>
-
-        <div class="lmwa-user">
+<div class="lmwa-user">
           <div>
-            <span>Tài khoản quản trị</span>
+            <span>ĐANG ĐĂNG NHẬP</span>
             <strong id="lmwa-current-email">—</strong>
           </div>
           <shopify-account menu="customer-account-main-menu"></shopify-account>
         </div>
       </header>
-
-      <div id="lmwa-secure" class="lmwa-secure ready">
-        <span>SECURE</span>
-        <div>
-          <strong>Phiên dữ liệu đã được xác minh</strong>
-          <small>Shopify Customer Account → Vercel → Realtime Database.</small>
-        </div>
-      </div>
-
-      <section class="lmwa-stats">
+<section class="lmwa-stats">
         <article class="lmwa-stat total">
           <span>Tổng phiếu</span>
           <strong id="stat-total">0</strong>
-          <small>Toàn bộ số bảo hành</small>
+          <small>Tổng hồ sơ</small>
         </article>
         <article class="lmwa-stat pending">
           <span>Chưa kích hoạt</span>
           <strong id="stat-pending">0</strong>
-          <small>Đang chờ khách xác thực</small>
+          <small>Chờ kích hoạt</small>
         </article>
         <article class="lmwa-stat activated">
           <span>Đã kích hoạt</span>
           <strong id="stat-activated">0</strong>
-          <small>Đã hoàn tất xác thực</small>
+          <small>Đã kích hoạt</small>
         </article>
       </section>
 
@@ -114,9 +91,9 @@
         <header class="lmwa-section-header">
           <div>
             <div class="lmwa-kicker">PHIẾU BẢO HÀNH MỚI</div>
-            <h2>Thông tin khách hàng và sản phẩm</h2>
+            <h2>Tạo hồ sơ bảo hành mới</h2>
           </div>
-          <p>Dữ liệu chỉ được ghi sau khi Vercel xác minh quyền truy cập quản trị.</p>
+          <p>Tạo mới hồ sơ bảo hành và thông tin giao dịch liên quan.</p>
         </header>
 
         <form id="create-form" novalidate>
@@ -125,7 +102,7 @@
               <span>01</span>
               <div>
                 <strong>Thông tin khách hàng</strong>
-                <small>Dữ liệu phục vụ kích hoạt và tra cứu bảo hành.</small>
+                <small>Thông tin khách hàng dùng để đối chiếu khi kích hoạt bảo hành online.</small>
               </div>
             </div>
 
@@ -153,7 +130,7 @@
               <span>02</span>
               <div>
                 <strong>Thông tin sản phẩm</strong>
-                <small>SKU luôn IN HOA, thương hiệu tự nhận diện và bảo hành cố định 24 tháng.</small>
+                <small>Hệ thống tự chuẩn hóa SKU, nhận diện thương hiệu và áp dụng thời hạn 24 tháng.</small>
               </div>
             </div>
 
@@ -188,15 +165,15 @@
                 </span>
               </label>
 
-              <label class="lmwa-field">
-                <span>Nơi mua</span>
+              <div class="lmwa-field lmwa-select-field">
+                <label for="c-location" class="lmwa-field-label">Nơi mua</label>
                 <select id="c-location">
                   <option value="Showroom L&M">Showroom L&amp;M</option>
                   <option value="Online">Online</option>
                   <option value="Đại lý">Đại lý</option>
                   <option value="Khác">Khác</option>
                 </select>
-              </label>
+              </div>
 
               <div class="lmwa-field">
                 <span>Số bảo hành *</span>
@@ -223,7 +200,7 @@
         <header class="lmwa-list-header">
           <div>
             <div class="lmwa-kicker">DỮ LIỆU BẢO HÀNH</div>
-            <h2>Danh sách phiếu bảo hành</h2>
+            <h2>Danh sách hồ sơ bảo hành</h2>
           </div>
 
           <div class="lmwa-header-actions">
@@ -269,7 +246,7 @@
             <div>
               <div class="lmwa-kicker">CHỈNH SỬA PHIẾU</div>
               <h2>Cập nhật thông tin bảo hành</h2>
-              <p>Mọi thay đổi được xác thực lại trên Vercel trước khi cập nhật dữ liệu.</p>
+              <p>Kiểm tra kỹ thông tin trước khi lưu thay đổi.</p>
             </div>
             <button type="button" class="lmwa-close" data-close-edit>ĐÓNG</button>
           </header>
@@ -323,15 +300,15 @@
                   <span>tháng</span>
                 </span>
               </label>
-              <label class="lmwa-field full">
-                <span>Nơi mua</span>
+              <div class="lmwa-field lmwa-select-field full">
+                <label for="e-location" class="lmwa-field-label">Nơi mua</label>
                 <select id="e-location">
                   <option value="Showroom L&M">Showroom L&amp;M</option>
                   <option value="Online">Online</option>
                   <option value="Đại lý">Đại lý</option>
                   <option value="Khác">Khác</option>
                 </select>
-              </label>
+              </div>
             </div>
 
             <div id="edit-message" class="lmwa-message" hidden></div>
@@ -377,13 +354,13 @@
             <div class="lmwa-kicker">L&amp;M INTERNAL</div>
             <h1>CHƯA HOÀN TẤT CẤU HÌNH</h1>
             <p>
-              Tài khoản đã có quyền quản trị nhưng chưa có Warranty Admin Access Key.
-              Vui lòng bổ sung tag bảo mật cho tài khoản Shopify này.
+              Tài khoản này chưa được cấp đầy đủ quyền truy cập khu vực quản trị bảo hành.
+              Vui lòng liên hệ người quản trị hệ thống để được hỗ trợ.
             </p>
 
             <div class="lmwa-auth-note">
-              <strong>Tag cần có</strong>
-              <span>warranty-admin-key-YOUR_RANDOM_KEY</span>
+              <strong>Trạng thái quyền truy cập</strong>
+              <span>Chưa hoàn tất cấu hình tài khoản quản trị.</span>
             </div>
 
             <shopify-account menu="customer-account-main-menu"></shopify-account>
@@ -399,8 +376,7 @@
           <div class="lmwa-kicker">L&amp;M INTERNAL</div>
           <h1>KHÔNG CÓ QUYỀN TRUY CẬP</h1>
           <p>
-            Email Shopify đã được xác thực nhưng tài khoản này chưa được cấp
-            quyền quản trị bảo hành.
+            Tài khoản đã được xác thực nhưng chưa được cấp quyền quản trị bảo hành.
           </p>
 
           <div class="lmwa-auth-note">
@@ -421,16 +397,14 @@
         <div class="lmwa-kicker">L&amp;M INTERNAL</div>
         <h1>QUẢN LÝ BẢO HÀNH</h1>
         <p>
-          Vui lòng xác thực tài khoản Shopify bằng luồng Customer Account
-          trước khi truy cập khu vực quản trị bảo hành.
+          Vui lòng xác thực tài khoản quản trị trước khi truy cập khu vực bảo hành.
         </p>
 
         <div class="lmwa-shopify-auth">
           <div class="lmwa-kicker">XÁC THỰC TÀI KHOẢN</div>
-          <h2>Tiếp tục bằng Shopify</h2>
+          <h2>Xác thực tài khoản quản trị</h2>
           <p>
-            Shopify sẽ thực hiện đăng nhập/passwordless verification.
-            Sau khi hoàn tất, trang sẽ tự tải lại.
+            Một mã xác thực sẽ được gửi đến email đăng ký. Sau khi hoàn tất, trang sẽ tự tải lại.
           </p>
 
           <shopify-account
@@ -442,7 +416,7 @@
               slot="signed-out-avatar"
               class="lmwa-button primary full"
             >
-              XÁC THỰC TÀI KHOẢN SHOPIFY
+              XÁC THỰC TÀI KHOẢN
             </button>
           </shopify-account>
         </div>
@@ -489,17 +463,15 @@ const SHOPIFY_ADMIN = JSON.parse(shopifyAdminNode?.textContent || '{}');
 const ADMIN_ACCESS_KEY = String(SHOPIFY_ADMIN.adminAccessKey || '');
 
 if (!ADMIN_ACCESS_KEY) {
-  throw new Error('Không đọc được Warranty Admin Access Key từ tag Shopify của tài khoản này.');
+  throw new Error('Tài khoản quản trị chưa được cấu hình đầy đủ.');
 }
 
 if (ADMIN_ACCESS_KEY.length < 32) {
-  throw new Error('Warranty Admin Access Key phải dài tối thiểu 32 ký tự.');
+  throw new Error('Thông tin xác thực quản trị chưa hợp lệ.');
 }
 
-/* =========================================================
-   CHANGE THIS ONE VALUE AFTER VERCEL DEPLOYMENT
-========================================================= */
-const API_BASE = 'https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app/api/warranty';
+/* Production API */
+const API_BASE = 'https://lm-warranty-active.vercel.app/api/warranty';
 
 const PAGE_SIZE = 50;
 
@@ -1164,127 +1136,886 @@ loadWarranties();
   {% endif %}
 {% endif %}
 
+
+
+
+
+
 <style>
+/* ==========================================================
+   L&M WARRANTY — FRESH ADMIN UI
+   This stylesheet intentionally replaces every prior version.
+   ========================================================== */
+
 .lmwa{
-  --g:rgb(39 70 49);
-  --gh:rgb(31 58 40);
-  --gs:rgba(39,70,49,.055);
-  --gb:rgba(39,70,49,.17);
-  --text:#202520;
-  --muted:#747a75;
-  --line:#e2e5e2;
-  --line2:#eceeec;
-  --success:#2f6b43;
-  --success-bg:#eef7f0;
-  --success-border:#cfe3d4;
-  --danger:#934b47;
-  --danger-bg:#fff3f1;
-  --danger-border:#efd1cc;
-  color:var(--text)
+  --ink:#172019;
+  --text:#2e3831;
+  --muted:#727b74;
+  --forest:#244430;
+  --forest-2:#315d40;
+  --forest-3:#3d6a4b;
+  --sage:#eaf0eb;
+  --sage-2:#f3f6f3;
+  --ivory:#f5f4ef;
+  --paper:#ffffff;
+  --line:#d8ded9;
+  --line-strong:#b9c5bc;
+  --danger:#8e4844;
+  --danger-bg:#f8eeee;
+  --pending:#765d2e;
+  --pending-bg:#f5f0e5;
+  --success:#28563a;
+  --success-bg:#e8f1ea;
+
+  box-sizing:border-box;
+  width:100%;
+  padding:34px 18px 72px;
+  background:
+    radial-gradient(circle at 8% 0%,rgba(36,68,48,.07),transparent 26%),
+    var(--ivory);
+  color:var(--text);
+  font-family:inherit;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
 }
-.lmwa *,.lmwa *:before,.lmwa *:after{box-sizing:border-box}
+
+.lmwa *,
+.lmwa *:before,
+.lmwa *:after{box-sizing:border-box}
+
+.lmwa [hidden]{display:none!important}
+
+.lmwa button,
+.lmwa input,
+.lmwa select{font:inherit}
+
 .lmwa-shell{
-  position:relative;
-  max-width:1240px;
-  margin:42px auto 72px;
-  padding:42px;
-  background:linear-gradient(180deg,#fff,#fdfefd);
-  border:1px solid rgba(31,36,32,.13);
-  border-radius:7px;
-  box-shadow:0 20px 65px rgba(24,31,26,.045)
+  width:min(1220px,100%);
+  margin:0 auto;
 }
-.lmwa-shell:before{content:"";position:absolute;top:0;left:42px;right:42px;height:2px;background:var(--g)}
-.lmwa-kicker{color:var(--g);font-size:11px;font-weight:650;letter-spacing:.18em}
-.lmwa-auth-view{max-width:650px;margin:15px auto}
-.lmwa-auth-card{text-align:center;padding:38px 44px}
-.lmwa-auth-card h1{margin:13px 0 0;font-size:31px;font-weight:520;letter-spacing:.045em}
-.lmwa-auth-card>p{max-width:560px;margin:13px auto 28px;color:var(--muted);font-size:14px;line-height:1.7}
-.lmwa-auth-card .lmwa-field{text-align:left}
-.lmwa-auth-note{margin-top:20px;padding:16px 17px;background:#f7f9f7;border:1px solid var(--line2);border-radius:5px;text-align:left}
-.lmwa-auth-note strong,.lmwa-auth-note span{display:block}
-.lmwa-auth-note strong{font-size:12px}.lmwa-auth-note span{margin-top:5px;color:var(--muted);font-size:11px;line-height:1.55}
-.lmwa-top{display:flex;justify-content:space-between;align-items:flex-start;gap:30px;padding-bottom:31px;border-bottom:1px solid var(--line2)}
-.lmwa-top h1{margin:12px 0 0;font-size:clamp(27px,4vw,35px);font-weight:510;letter-spacing:.045em}
-.lmwa-top p{max-width:690px;margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.7}
-.lmwa-user{display:flex;align-items:center;gap:12px;padding:11px 12px 11px 15px;background:#fafbfa;border:1px solid var(--line2);border-radius:5px}
-.lmwa-user span,.lmwa-user strong{display:block}.lmwa-user span{color:var(--muted);font-size:9px}.lmwa-user strong{margin-top:3px;font-size:11px}
-.lmwa-user button{min-height:35px;padding:0 10px;border:1px solid #dfe2df;border-radius:4px;background:#fff;color:#5e655f;cursor:pointer;font:inherit;font-size:8px;font-weight:700;letter-spacing:.06em}
-.lmwa-secure{display:flex;align-items:center;gap:11px;margin-top:21px;padding:13px 15px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:5px}
-.lmwa-secure>span{padding:7px 9px;border:1px solid var(--success-border);border-radius:999px;background:#fff;color:var(--success);font-size:8px;font-weight:750;letter-spacing:.1em}
-.lmwa-secure strong,.lmwa-secure small{display:block}.lmwa-secure strong{font-size:12px}.lmwa-secure small{margin-top:3px;color:#5f7565;font-size:10px}
-.lmwa-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-top:26px}
-.lmwa-stat{position:relative;min-height:126px;padding:23px 24px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.025)}
-.lmwa-stat:before{content:"";position:absolute;top:0;left:18px;right:18px;height:2px;background:var(--g)}
-.lmwa-stat span,.lmwa-stat strong,.lmwa-stat small{display:block}.lmwa-stat span{font-size:13px;font-weight:600}.lmwa-stat strong{margin-top:10px;font-size:35px;font-weight:510}.lmwa-stat small{margin-top:10px;color:#858a86;font-size:11px}
-.lmwa-stat.pending{background:linear-gradient(180deg,#fff,var(--danger-bg) 145%);border-color:var(--danger-border)}.lmwa-stat.pending:before{background:var(--danger)}.lmwa-stat.pending strong{color:var(--danger)}
-.lmwa-stat.activated{background:linear-gradient(180deg,#fff,var(--success-bg) 145%);border-color:var(--success-border)}.lmwa-stat.activated:before{background:var(--success)}.lmwa-stat.activated strong{color:var(--success)}
-.lmwa-tabs{display:flex;gap:5px;margin-top:31px;padding:5px;background:#f7f8f7;border:1px solid var(--line2);border-radius:6px}
-.lmwa-tab{min-width:150px;padding:13px 20px;border:0;border-radius:4px;background:transparent;color:#737974;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.075em}.lmwa-tab.active{color:var(--g);background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.035)}
-.lmwa-panel{display:none;padding-top:36px}.lmwa-panel.active{display:block}
-.lmwa-section-header,.lmwa-list-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:27px}.lmwa-section-header h2,.lmwa-list-header h2{margin:8px 0 0;font-size:24px;font-weight:530}.lmwa-section-header>p{max-width:340px;margin:0;color:var(--muted);font-size:12px;line-height:1.6}
-.lmwa-form-card{padding:29px;background:linear-gradient(180deg,#fcfdfc,#fafbfa);border:1px solid var(--line2);border-radius:6px}.lmwa-form-card+.lmwa-form-card{margin-top:15px}
-.lmwa-form-title{display:flex;gap:14px;margin-bottom:25px}.lmwa-form-title>span{color:var(--g);font-size:11px;font-weight:700;letter-spacing:.14em}.lmwa-form-title strong,.lmwa-form-title small{display:block}.lmwa-form-title strong{font-size:17px;font-weight:590}.lmwa-form-title small{margin-top:5px;color:var(--muted);font-size:12px}
-.lmwa-grid{display:grid;gap:20px}.lmwa-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.lmwa-field.full{grid-column:1/-1}
-.lmwa-field>span{display:block;margin-bottom:8px;font-size:13px;font-weight:600}.lmwa-field>small{display:block;margin-top:7px;color:#808681;font-size:11px;line-height:1.5}
-.lmwa-field input,.lmwa-field select,.lmwa-tools input,.lmwa-tools select{width:100%;height:54px;padding:0 15px;outline:none;background:#fff;border:1px solid #d5d9d5;border-radius:4px;color:var(--text);font:inherit;font-size:15px}.lmwa-field input:focus,.lmwa-field select:focus,.lmwa-tools input:focus,.lmwa-tools select:focus{border-color:rgba(39,70,49,.65);box-shadow:0 0 0 3px var(--gs)}
-.lmwa-field input.uppercase{text-transform:uppercase;font-weight:600;letter-spacing:.025em}.lmwa-field input.readonly{cursor:default;background:#f5f7f5}.brand-field.recognized input{color:var(--g)!important;background:#f1f8f3!important;border-color:var(--gb)!important;font-weight:650}.brand-field.unrecognized input{color:var(--danger)!important;background:var(--danger-bg)!important;border-color:var(--danger-border)!important}
-.lmwa-suffix{position:relative}.lmwa-suffix input{padding-right:67px}.lmwa-suffix>span{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
-.lmwa-code-field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.lmwa-code-field button{min-width:92px;border:1px solid var(--gb);border-radius:4px;background:#fff;color:var(--g);cursor:pointer;font:inherit;font-size:10px;font-weight:700}
-.lmwa-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:25px;padding-top:23px;border-top:1px solid var(--line2)}
-.lmwa-button{min-height:50px;padding:0 20px;border-radius:4px;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.07em}.lmwa-button.full{width:100%;margin-top:16px}.lmwa-button.primary{min-width:220px;color:#fff;background:var(--g);border:1px solid var(--g)}.lmwa-button.secondary{color:#525853;background:#fff;border:1px solid #d9ddd9}.lmwa-button.compact{min-height:42px;padding:0 14px;font-size:9px}.lmwa-button.danger{min-width:145px;color:#fff;background:var(--danger);border:1px solid var(--danger)}.lmwa-button:disabled{opacity:.58;cursor:wait}
-.lmwa-message{margin-top:16px;padding:13px 15px;border-radius:4px;font-size:12px;line-height:1.6}.lmwa-message.error{color:#754541;background:var(--danger-bg);border:1px solid var(--danger-border)}.lmwa-message.success{color:var(--success);background:var(--success-bg);border:1px solid var(--success-border)}.lmwa-message.neutral{color:#535954;background:#f7f8f7;border:1px solid var(--line)}
-.lmwa-created{position:relative;margin-top:21px;padding:28px;background:linear-gradient(180deg,#fff,var(--success-bg) 150%);border:1px solid var(--success-border);border-radius:6px}.lmwa-created:before{content:"";position:absolute;top:0;left:28px;right:28px;height:2px;background:var(--success)}.lmwa-created h3{margin:9px 0 0;color:var(--success);font-size:25px;font-weight:560}.lmwa-created>p{margin:8px 0 0;color:var(--muted);font-size:12px}
-.lmwa-created-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:20px;overflow:hidden;background:var(--success-border);border:1px solid var(--success-border);border-radius:4px}.lmwa-created-grid>div{padding:14px;background:#fff}.lmwa-created-grid span,.lmwa-created-grid strong,.lmwa-created-grid small{display:block}.lmwa-created-grid span{color:var(--muted);font-size:10px}.lmwa-created-grid strong{margin-top:5px;font-size:12px}.lmwa-created-grid small{margin-top:4px;color:var(--success);font-size:10px}
-.lmwa-header-actions{display:flex;gap:8px}.lmwa-tools{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:12px;padding:18px;background:#fafbfa;border:1px solid var(--line2);border-radius:6px}.lmwa-tools label>span{display:block;margin-bottom:7px;color:var(--muted);font-size:10px;font-weight:650}
-.lmwa-list-meta{margin:18px 0 11px;color:var(--muted);font-size:11px}.lmwa-list{display:grid;gap:10px}
-.lmwa-row{display:grid;grid-template-columns:1.25fr 1.08fr .9fr .82fr auto;gap:18px;align-items:center;padding:19px 18px;background:#fff;border:1px solid #e4e7e4;border-radius:6px;box-shadow:0 2px 9px rgba(0,0,0,.018)}.lmwa-row>div{min-width:0}.lmwa-row-label{display:block;margin-bottom:6px;color:#8c918d;font-size:9px;font-weight:650;letter-spacing:.055em}.lmwa-row strong,.lmwa-row small{display:block;overflow:hidden;text-overflow:ellipsis}.lmwa-row strong{font-size:12px;font-weight:620;white-space:nowrap}.lmwa-row-main>strong{color:var(--g);font-size:14px}.lmwa-row small{margin-top:6px;color:var(--muted);font-size:10px;white-space:nowrap}
-.lmwa-row-status{display:flex;flex-direction:column;align-items:flex-start}.lmwa-status{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 12px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.lmwa-status.activated{color:var(--success);background:var(--success-bg);border:1px solid var(--success-border)}.lmwa-status.pending{color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-border)}
-.lmwa-row-actions{display:flex;gap:6px}.lmwa-row-actions button{min-height:34px;padding:0 10px;border-radius:4px;background:#fff;cursor:pointer;font:inherit;font-size:8px;font-weight:750}.lmwa-row-actions .edit{color:var(--g);border:1px solid var(--gb)}.lmwa-row-actions .delete{color:var(--danger);border:1px solid var(--danger-border)}
-.lmwa-empty{padding:50px 20px;background:#fafbfa;border:1px dashed #dfe3df;border-radius:6px;text-align:center}.lmwa-empty strong,.lmwa-empty span{display:block}.lmwa-empty strong{font-size:15px}.lmwa-empty span{margin-top:7px;color:var(--muted);font-size:11px}
-.lmwa-pagination{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:17px 18px;background:#f8faf8;border:1px solid var(--line2);border-radius:6px;color:var(--muted);font-size:11px}.lmwa-pagination nav,.lmwa-page-numbers{display:flex;align-items:center;gap:5px}.lmwa-pagination button{height:37px;min-width:37px;padding:0 10px;border:1px solid #dce0dc;border-radius:4px;background:#fff;color:#555b56;cursor:pointer;font:inherit;font-size:10px;font-weight:650}.lmwa-pagination nav>button{min-width:68px;font-size:9px}.lmwa-pagination button.active{color:#fff;background:var(--g);border-color:var(--g)}.lmwa-ellipsis{width:24px;text-align:center}
-.lmwa-modal[hidden]{display:none}.lmwa-modal{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:24px}.lmwa-backdrop{position:absolute;inset:0;background:rgba(17,23,19,.49);backdrop-filter:blur(3px)}.lmwa-dialog{position:relative;z-index:1;width:min(760px,100%);max-height:calc(100vh - 48px);overflow:auto;padding:31px;background:#fff;border-radius:7px;box-shadow:0 34px 90px rgba(0,0,0,.2)}.lmwa-dialog.delete-dialog{width:min(520px,100%)}
-.lmwa-dialog-header{display:flex;justify-content:space-between;gap:20px;margin-bottom:25px;padding-bottom:21px;border-bottom:1px solid var(--line2)}.lmwa-dialog-header h2{margin:8px 0 0;font-size:23px;font-weight:540}.lmwa-dialog-header p{max-width:600px;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.6}.lmwa-close{min-height:36px;padding:0 12px;border:1px solid #dde0dd;border-radius:4px;background:#fff;color:#666c67;cursor:pointer;font:inherit;font-size:8px;font-weight:750}
-.lmwa-current-status{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding:13px 15px;background:#fafbfa;border:1px solid var(--line2);border-radius:5px}.lmwa-current-status>span{color:var(--muted);font-size:11px}.lmwa-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;padding-top:21px;border-top:1px solid var(--line2)}
-.lmwa-delete-code{padding:17px;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:5px}.lmwa-delete-code span,.lmwa-delete-code strong{display:block}.lmwa-delete-code span{color:#8b6c68;font-size:10px}.lmwa-delete-code strong{margin-top:6px;color:var(--danger);font-size:18px}.danger-text{color:var(--danger)}.lmwa-modal-open{overflow:hidden}
-@media(max-width:1050px){.lmwa-row{grid-template-columns:1.2fr 1fr .9fr .8fr}.lmwa-row-actions{grid-column:1/-1;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--line2)}}
-@media(max-width:900px){.lmwa-shell{margin:26px 15px 52px;padding:30px 27px}.lmwa-shell:before{left:27px;right:27px}.lmwa-top{flex-direction:column}.lmwa-user{max-width:100%}.lmwa-created-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:680px){
-  .lmwa-shell{margin:14px 8px 38px;padding:27px 14px 31px;box-shadow:none}.lmwa-shell:before{left:14px;right:14px}.lmwa-auth-card{padding:22px 2px}.lmwa-auth-card h1{font-size:26px}
-  .lmwa-top h1{font-size:26px}.lmwa-user{width:100%;justify-content:space-between}.lmwa-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.lmwa-stat{min-height:112px;padding:16px}.lmwa-stat.total{grid-column:1/-1;min-height:102px}.lmwa-stat strong{font-size:28px}
-  .lmwa-tab{flex:1;min-width:0;padding:13px 9px;font-size:10px}.lmwa-section-header,.lmwa-list-header{align-items:stretch;flex-direction:column;gap:12px}.lmwa-section-header h2,.lmwa-list-header h2{font-size:21px}.lmwa-header-actions{display:grid;grid-template-columns:1fr 1fr}
-  .lmwa-form-card{padding:22px 14px}.lmwa-grid.two{grid-template-columns:1fr}.lmwa-field.full{grid-column:auto}.lmwa-field input,.lmwa-field select,.lmwa-tools input,.lmwa-tools select{font-size:16px}.lmwa-code-field{grid-template-columns:1fr}.lmwa-code-field button{min-height:43px}
-  .lmwa-actions{flex-direction:column-reverse}.lmwa-actions .lmwa-button{width:100%}.lmwa-created-grid{grid-template-columns:1fr}.lmwa-tools{grid-template-columns:1fr;padding:14px}.lmwa-row{grid-template-columns:1fr 1fr;padding:17px 15px}.lmwa-row-main{grid-column:1/-1;padding-bottom:12px;border-bottom:1px solid var(--line2)}.lmwa-row-actions{display:grid;grid-template-columns:1fr 1fr;grid-column:1/-1;width:100%}.lmwa-row-actions button{min-height:40px}.lmwa-row strong,.lmwa-row small{white-space:normal;word-break:break-word}
-  .lmwa-pagination{flex-direction:column;align-items:stretch;gap:12px;padding:14px}.lmwa-pagination>div{text-align:center}.lmwa-pagination nav{justify-content:center}.lmwa-page-numbers{max-width:calc(100vw - 180px);overflow-x:auto}
-  .lmwa-modal{align-items:flex-end;padding:0}.lmwa-dialog{width:100%;max-height:92vh;padding:24px 16px 21px;border-radius:10px 10px 0 0}.lmwa-dialog-header h2{font-size:21px}.lmwa-dialog-actions{position:sticky;bottom:-21px;margin-left:-16px;margin-right:-16px;padding:14px 16px 17px;background:rgba(255,255,255,.97)}
+
+/* ---------- Hero ---------- */
+.lmwa-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(220px,310px);
+  gap:28px;
+  align-items:end;
+  padding:36px 38px;
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 85% 0%,rgba(255,255,255,.10),transparent 26%),
+    linear-gradient(135deg,#1e3a29 0%,#294d35 55%,#315a3d 100%);
+  color:#fff;
+  box-shadow:0 22px 50px rgba(28,48,34,.16);
 }
-@media(max-width:430px){.lmwa-row{grid-template-columns:1fr}.lmwa-row-main{grid-column:auto}.lmwa-row-actions{grid-column:auto}.lmwa-dialog-actions{flex-direction:column-reverse}.lmwa-dialog-actions .lmwa-button{width:100%}}
-</style>
-<style>
-.lmwa .lmwa-shopify-auth{
-  margin-top:22px;
-  padding:25px;
-  background:#fafbfa;
-  border:1px solid rgba(39,70,49,.16);
-  border-radius:5px;
+
+.lmwa-top h1{
+  margin:0;
+  color:#fff;
+  font-size:clamp(30px,4vw,44px);
+  font-weight:760;
+  line-height:1.03;
+  letter-spacing:-.035em;
+}
+
+.lmwa-top p{
+  max-width:720px;
+  margin:15px 0 0;
+  color:rgba(255,255,255,.72);
+  font-size:13px;
+  font-weight:500;
+  line-height:1.75;
+}
+
+.lmwa-user{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:15px 16px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:12px;
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(8px);
+}
+
+.lmwa-user span,
+.lmwa-user strong{display:block}
+.lmwa-user span{
+  color:rgba(255,255,255,.55);
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.lmwa-user strong{
+  margin-top:5px;
+  overflow:hidden;
+  color:#fff;
+  font-size:11px;
+  font-weight:650;
+  text-overflow:ellipsis;
+}
+
+/* ---------- Stats ---------- */
+.lmwa-stats{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin:18px 0 0;
+}
+
+.lmwa-stat{
+  min-width:0;
+  padding:19px 20px 18px;
+  border:1px solid rgba(36,68,48,.12);
+  border-radius:14px;
+  background:var(--paper);
+  box-shadow:0 9px 22px rgba(31,42,34,.045);
+}
+
+.lmwa-stat span,
+.lmwa-stat strong,
+.lmwa-stat small{display:block}
+
+.lmwa-stat span{
+  color:#6c756e;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.lmwa-stat strong{
+  margin-top:8px;
+  color:var(--ink);
+  font-size:30px;
+  font-weight:780;
+  line-height:1;
+  letter-spacing:-.035em;
+}
+
+.lmwa-stat small{
+  margin-top:7px;
+  color:#858d87;
+  font-size:10px;
+  font-weight:520;
+}
+
+.lmwa-stat.total{
+  border-color:var(--forest);
+  background:var(--forest);
+}
+.lmwa-stat.total span,
+.lmwa-stat.total strong{color:#fff}
+.lmwa-stat.total small{color:rgba(255,255,255,.62)}
+
+/* ---------- Tabs ---------- */
+.lmwa-tabs{
+  display:flex;
+  gap:6px;
+  width:max-content;
+  margin:24px 0 0;
+  padding:5px;
+  border:1px solid #d4dbd5;
+  border-radius:12px;
+  background:#e9edea;
+}
+
+.lmwa-tab{
+  min-height:42px;
+  padding:0 18px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#637067;
+  cursor:pointer;
+  font-size:9px;
+  font-weight:820;
+  letter-spacing:.085em;
+}
+
+.lmwa-tab.active{
+  background:#fff;
+  color:var(--forest);
+  box-shadow:0 4px 12px rgba(31,42,34,.08);
+}
+
+/* ---------- Panels ---------- */
+.lmwa-panel{display:none;padding-top:30px}
+.lmwa-panel.active{display:block}
+
+.lmwa-section-header,
+.lmwa-list-header{
+  display:flex;
+  justify-content:space-between;
+  gap:24px;
+  align-items:flex-end;
+  margin-bottom:18px;
+}
+
+.lmwa-kicker{
+  color:var(--forest-2);
+  font-size:8px;
+  font-weight:840;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+}
+
+.lmwa-section-header h2,
+.lmwa-list-header h2,
+.lmwa-dialog-header h2{
+  margin:7px 0 0;
+  color:var(--ink);
+  font-size:25px;
+  font-weight:730;
+  line-height:1.15;
+  letter-spacing:-.025em;
+}
+
+.lmwa-section-header>p,
+.lmwa-dialog-header p{
+  max-width:420px;
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:500;
+  line-height:1.6;
+}
+
+/* ---------- Create form ---------- */
+#create-form{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:#fff;
+  box-shadow:0 12px 32px rgba(31,42,34,.045);
+}
+
+.lmwa-form-card{
+  padding:28px 30px 30px;
+  background:#fff;
+}
+
+.lmwa-form-card + .lmwa-form-card{
+  border-top:1px solid #e4e8e5;
+}
+
+.lmwa-form-title{
+  display:flex;
+  gap:13px;
+  align-items:flex-start;
+  margin-bottom:23px;
+}
+
+.lmwa-form-title>span{
+  display:flex;
+  width:31px;
+  height:31px;
+  flex:0 0 31px;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  background:var(--forest);
+  color:#fff;
+  font-size:9px;
+  font-weight:820;
+}
+
+.lmwa-form-title strong,
+.lmwa-form-title small{display:block}
+.lmwa-form-title strong{
+  color:var(--ink);
+  font-size:15px;
+  font-weight:720;
+}
+.lmwa-form-title small{
+  max-width:640px;
+  margin-top:4px;
+  color:#7a837c;
+  font-size:10px;
+  font-weight:500;
+  line-height:1.55;
+}
+
+/* ---------- Fields: intentionally flat, not cards ---------- */
+.lmwa-grid{
+  display:grid;
+  gap:17px 18px;
+}
+.lmwa-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lmwa-field.full{grid-column:1/-1}
+
+.lmwa-field{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  margin:0;
+}
+
+.lmwa-field>span:first-child,
+.lmwa-field-label{
+  display:block;
+  margin:0 0 7px;
+  color:#414c44;
+  font-size:10px;
+  font-weight:720;
+  line-height:1.3;
+}
+
+.lmwa-field>small{
+  display:block;
+  margin:6px 2px 0;
+  color:#8b928d;
+  font-size:9px;
+  font-weight:500;
+  line-height:1.45;
+}
+
+.lmwa-field input,
+.lmwa-field select{
+  width:100%;
+  height:52px;
+  margin:0;
+  padding:0 14px;
+  border:1.5px solid var(--line-strong);
+  border-radius:10px;
+  outline:none;
+  background:#fff;
+  color:#202a22;
+  box-shadow:0 1px 1px rgba(31,42,34,.015);
+  font-size:13px;
+  font-weight:600;
+  line-height:1;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+
+.lmwa-field input::placeholder{color:#9ca49e;font-weight:500}
+
+.lmwa-field input:hover,
+.lmwa-field select:hover{border-color:#91a095}
+
+.lmwa-field input:focus,
+.lmwa-field select:focus{
+  border-color:var(--forest-2);
+  box-shadow:0 0 0 3px rgba(49,93,64,.10);
+}
+
+.lmwa-field select,
+.lmwa-tools select{
+  -webkit-appearance:menulist!important;
+  appearance:auto!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+
+.lmwa-field select option,
+.lmwa-tools select option{
+  background:#fff;
+  color:#1d271f;
+}
+
+.lmwa-field input.readonly,
+.lmwa-field input[readonly]{
+  border-color:#c8d6cb;
+  background:#eef4ef;
+  color:#31533a;
+  font-weight:700;
+  cursor:default;
+}
+
+.brand-field.recognized input{
+  border-color:#abc1b0!important;
+  background:#e7f0e9!important;
+  color:#245033!important;
+}
+
+.lmwa-code-field,
+.lmwa-suffix{
+  display:flex;
+  width:100%;
+  gap:8px;
+  align-items:center;
+}
+.lmwa-code-field input,
+.lmwa-suffix input{min-width:0;flex:1}
+
+.lmwa-code-field button{
+  height:52px;
+  min-width:106px;
+  padding:0 15px;
+  border:1px solid var(--forest);
+  border-radius:10px;
+  background:var(--forest);
+  color:#fff;
+  cursor:pointer;
+  font-size:9px;
+  font-weight:820;
+  letter-spacing:.07em;
+}
+.lmwa-code-field button:hover{background:var(--forest-2)}
+
+.lmwa-suffix>span:last-child{
+  display:flex;
+  height:52px;
+  align-items:center;
+  justify-content:center;
+  padding:0 14px;
+  border:1px solid #c8d6cb;
+  border-radius:10px;
+  background:#eef4ef;
+  color:#31533a;
+  font-size:10px;
+  font-weight:720;
+}
+
+/* ---------- Buttons/actions ---------- */
+.lmwa-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  padding:16px 18px;
+  border-top:1px solid #e4e8e5;
+  background:#f6f7f5;
+}
+
+.lmwa-button{
+  min-height:44px;
+  padding:0 16px;
+  border-radius:9px;
+  cursor:pointer;
+  font-size:9px;
+  font-weight:820;
+  letter-spacing:.065em;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease;
+}
+
+.lmwa-button.primary{
+  border:1px solid var(--forest);
+  background:var(--forest);
+  color:#fff;
+}
+.lmwa-button.primary:hover{background:var(--forest-2);transform:translateY(-1px)}
+
+.lmwa-button.secondary{
+  border:1px solid #bcc7be;
+  background:#fff;
+  color:#3e4a41;
+}
+.lmwa-button.secondary:hover{border-color:#829388;background:#f8faf8}
+
+.lmwa-button.danger{
+  border:1px solid var(--danger);
+  background:var(--danger);
+  color:#fff;
+}
+
+.lmwa-button.compact{min-height:38px;padding:0 12px}
+.lmwa-button.full{width:100%}
+
+/* ---------- Messages/results ---------- */
+.lmwa-message{
+  margin:14px 0 0;
+  padding:12px 14px;
+  border-radius:9px;
+  font-size:11px;
+  font-weight:560;
+  line-height:1.55;
+}
+.lmwa-message.success{border:1px solid #b7cdbb;background:var(--success-bg);color:var(--success)}
+.lmwa-message.error{border:1px solid #dfc1bf;background:var(--danger-bg);color:var(--danger)}
+.lmwa-message.info{border:1px solid #cbd2cc;background:#f1f3f1;color:#536057}
+
+.lmwa-created{
+  margin-top:18px;
+  padding:24px;
+  border:1px solid #b9ccbd;
+  border-radius:14px;
+  background:#eef5ef;
+}
+.lmwa-created h3{margin:7px 0 0;color:#244c31;font-size:22px;font-weight:720}
+.lmwa-created>p{margin:7px 0 0;color:#66736a;font-size:11px}
+.lmwa-created-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:1px;
+  margin-top:17px;
+  overflow:hidden;
+  border:1px solid #c8d7cb;
+  border-radius:10px;
+  background:#c8d7cb;
+}
+.lmwa-created-grid>div{padding:13px;background:#fff}
+.lmwa-created-grid span,
+.lmwa-created-grid strong,
+.lmwa-created-grid small{display:block}
+.lmwa-created-grid span{color:#818a83;font-size:9px;font-weight:700}
+.lmwa-created-grid strong{margin-top:5px;color:#29352c;font-size:12px;font-weight:680}
+.lmwa-created-grid small{margin-top:4px;color:#387047;font-size:9px}
+
+/* ---------- List ---------- */
+.lmwa-header-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+
+.lmwa-tools{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 220px;
+  gap:10px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#ebeeeb;
+}
+
+.lmwa-tools label span{
+  display:block;
+  margin:0 0 6px 2px;
+  color:#59655d;
+  font-size:9px;
+  font-weight:750;
+}
+
+.lmwa-tools input,
+.lmwa-tools select{
+  width:100%;
+  height:46px;
+  padding:0 13px;
+  border:1.5px solid #b5c0b7;
+  border-radius:9px;
+  outline:none;
+  background:#fff;
+  color:#263129;
+  font-size:11px;
+  font-weight:600;
+}
+.lmwa-tools input:focus,
+.lmwa-tools select:focus{
+  border-color:var(--forest-2);
+  box-shadow:0 0 0 3px rgba(49,93,64,.08);
+}
+
+.lmwa-list-meta{
+  margin:13px 2px 8px;
+  color:#7d867f;
+  font-size:10px;
+  font-weight:550;
+}
+
+.lmwa-list{display:grid;gap:8px}
+
+.lmwa-row{
+  display:grid;
+  grid-template-columns:1.2fr 1.05fr .9fr .8fr auto;
+  gap:16px;
+  align-items:center;
+  padding:16px 17px;
+  border:1px solid #d9dfda;
+  border-radius:12px;
+  background:#fff;
+  transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease;
+}
+.lmwa-row:hover{
+  border-color:#b6c2b8;
+  box-shadow:0 8px 22px rgba(31,42,34,.05);
+  transform:translateY(-1px);
+}
+.lmwa-row>div{min-width:0}
+.lmwa-row-label{
+  display:block;
+  margin-bottom:5px;
+  color:#838c85;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.lmwa-row strong,
+.lmwa-row small{display:block;overflow:hidden;text-overflow:ellipsis}
+.lmwa-row strong{color:#29332c;font-size:11px;font-weight:680;white-space:nowrap}
+.lmwa-row-main>strong{color:var(--forest);font-size:13px;font-weight:760}
+.lmwa-row small{margin-top:5px;color:#7c857e;font-size:9px;white-space:nowrap}
+
+.lmwa-row-status{display:flex;flex-direction:column;align-items:flex-start}
+.lmwa-status{
+  display:inline-flex;
+  min-height:29px;
+  align-items:center;
+  justify-content:center;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:780;
+  white-space:nowrap;
+}
+.lmwa-status.activated{
+  border:1px solid #a9c3ae;
+  background:var(--success-bg);
+  color:#29573a;
+}
+.lmwa-status.pending{
+  border:1px solid #d5c6a8;
+  background:var(--pending-bg);
+  color:var(--pending);
+}
+
+.lmwa-row-actions{display:flex;gap:6px}
+.lmwa-row-actions button{
+  min-height:34px;
+  padding:0 10px;
+  border-radius:8px;
+  background:#fff;
+  cursor:pointer;
+  font-size:8px;
+  font-weight:800;
+}
+.lmwa-row-actions .edit{border:1px solid #b8c4ba;color:var(--forest)}
+.lmwa-row-actions .delete{border:1px solid #dfc1bf;color:var(--danger)}
+
+.lmwa-empty{
+  padding:46px 20px;
+  border:1px dashed #cbd3cc;
+  border-radius:12px;
+  background:#f5f6f4;
   text-align:center;
 }
-.lmwa .lmwa-shopify-auth h2{
-  margin:9px 0 0;
-  font-size:21px;
-  font-weight:540;
+.lmwa-empty strong,
+.lmwa-empty span{display:block}
+.lmwa-empty strong{color:#344138;font-size:14px;font-weight:700}
+.lmwa-empty span{margin-top:6px;color:#7d877f;font-size:10px}
+
+.lmwa-pagination{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  align-items:center;
+  margin-top:14px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff;
+  color:#727c74;
+  font-size:10px;
 }
-.lmwa .lmwa-shopify-auth p{
-  margin:9px auto 0;
-  max-width:510px;
-  color:#747a75;
+.lmwa-pagination nav,
+.lmwa-page-numbers{display:flex;gap:5px;align-items:center}
+.lmwa-pagination button{
+  min-width:34px;
+  height:34px;
+  border:1px solid #c5cdc6;
+  border-radius:7px;
+  background:#fff;
+  color:#3d4a41;
+  cursor:pointer;
+  font-size:8px;
+  font-weight:800;
+}
+.lmwa-pagination button.active{
+  border-color:var(--forest);
+  background:var(--forest);
+  color:#fff;
+}
+.lmwa-ellipsis{padding:0 3px}
+
+/* ---------- Modal ---------- */
+.lmwa-modal{
+  position:fixed;
+  z-index:9999;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.lmwa-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(15,22,17,.58);
+  backdrop-filter:blur(3px);
+}
+.lmwa-dialog{
+  position:relative;
+  z-index:1;
+  width:min(780px,100%);
+  max-height:min(88vh,820px);
+  overflow:auto;
+  padding:25px;
+  border:1px solid #d6ddd7;
+  border-radius:17px;
+  background:#fff;
+  box-shadow:0 30px 90px rgba(9,16,11,.25);
+}
+.lmwa-dialog-header{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:flex-start;
+  margin-bottom:20px;
+}
+.lmwa-close{
+  min-height:36px;
+  padding:0 11px;
+  border:1px solid #c7d0c9;
+  border-radius:8px;
+  background:#fff;
+  color:#59645c;
+  cursor:pointer;
+  font-size:8px;
+  font-weight:800;
+}
+.lmwa-current-status,
+.lmwa-delete-code{
+  margin-bottom:17px;
+  padding:12px 13px;
+  border:1px solid #d9e0da;
+  border-radius:10px;
+  background:#f5f7f5;
+}
+.lmwa-current-status span,
+.lmwa-delete-code span{
+  display:block;
+  color:#7c867f;
+  font-size:8px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+}
+.lmwa-current-status strong,
+.lmwa-delete-code strong{
+  display:block;
+  margin-top:5px;
+  color:#2c3930;
+  font-size:12px;
+  font-weight:720;
+}
+.lmwa-dialog-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:19px;
+}
+.danger-text{color:var(--danger)!important}
+
+/* ---------- Access screens ---------- */
+.lmwa-auth-view{
+  display:flex;
+  min-height:520px;
+  align-items:center;
+  justify-content:center;
+}
+.lmwa-auth-card{
+  width:min(620px,100%);
+  padding:36px;
+  border:1px solid #d6ddd7;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 20px 55px rgba(31,42,34,.08);
+}
+.lmwa-auth-card h1{
+  margin:10px 0 0;
+  color:var(--ink);
+  font-size:28px;
+  font-weight:750;
+  letter-spacing:-.025em;
+}
+.lmwa-auth-card>p{
+  margin:11px 0 0;
+  color:#6f7871;
   font-size:12px;
   line-height:1.65;
 }
-#lmwa-admin-account{
-  display:block;
-  width:100%;
-  margin-top:18px;
-  --shopify-account-color-accent:rgb(39 70 49);
-  --shopify-account-radius-base:4px;
+.lmwa-auth-note,
+.lmwa-shopify-auth{
+  margin-top:19px;
+  padding:16px;
+  border:1px solid #d7ded8;
+  border-radius:12px;
+  background:#f4f6f4;
+}
+.lmwa-auth-note strong,
+.lmwa-auth-note span{display:block}
+.lmwa-auth-note strong{color:#38463c;font-size:10px;font-weight:760}
+.lmwa-auth-note span{margin-top:5px;color:#727c74;font-size:10px}
+.lmwa-shopify-auth h2{margin:8px 0 0;color:var(--ink);font-size:19px;font-weight:720}
+.lmwa-shopify-auth p{margin:8px 0 0;color:#747d76;font-size:11px;line-height:1.6}
+#lmwa-admin-account{display:block;margin-top:15px}
+
+/* ---------- Responsive ---------- */
+@media(max-width:980px){
+  .lmwa-row{grid-template-columns:1.15fr 1fr .9fr .78fr}
+  .lmwa-row-actions{
+    grid-column:1/-1;
+    justify-content:flex-end;
+    padding-top:10px;
+    border-top:1px solid #e3e7e4;
+  }
+}
+
+@media(max-width:760px){
+  .lmwa{padding:18px 10px 48px}
+  .lmwa-top{
+    grid-template-columns:1fr;
+    padding:26px 20px;
+    border-radius:15px;
+  }
+  .lmwa-user{width:100%}
+  .lmwa-stats{gap:7px}
+  .lmwa-stat{padding:15px 12px;border-radius:11px}
+  .lmwa-stat strong{font-size:25px}
+  .lmwa-stat span{font-size:8px}
+  .lmwa-stat small{font-size:8px}
+  .lmwa-section-header,
+  .lmwa-list-header{align-items:flex-start;flex-direction:column}
+  .lmwa-section-header>p{max-width:none}
+  .lmwa-grid.two{grid-template-columns:1fr}
+  .lmwa-field.full{grid-column:auto}
+  .lmwa-form-card{padding:22px 16px 23px}
+  .lmwa-created-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lmwa-tools{grid-template-columns:1fr}
+  .lmwa-row{
+    grid-template-columns:1fr 1fr;
+    gap:13px;
+  }
+  .lmwa-row-main{
+    grid-column:1/-1;
+    padding-bottom:11px;
+    border-bottom:1px solid #e5e8e6;
+  }
+  .lmwa-row-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .lmwa-pagination{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .lmwa-dialog{
+    padding:20px 15px;
+  }
+}
+
+@media(max-width:480px){
+  .lmwa-top h1{font-size:29px}
+  .lmwa-top p{font-size:11px}
+  .lmwa-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lmwa-stat{min-height:91px;padding:13px 9px}
+  .lmwa-stat strong{font-size:23px}
+  .lmwa-stat small{display:none}
+  .lmwa-tabs{width:100%}
+  .lmwa-tab{flex:1;padding:0 8px}
+  .lmwa-form-title small{font-size:9px}
+  .lmwa-field input,
+  .lmwa-field select{height:50px;font-size:16px}
+  .lmwa-code-field button{height:50px;min-width:88px}
+  .lmwa-suffix>span:last-child{height:50px}
+  .lmwa-actions{
+    flex-direction:column-reverse;
+  }
+  .lmwa-actions .lmwa-button{width:100%}
+  .lmwa-created-grid{grid-template-columns:1fr}
+  .lmwa-row{grid-template-columns:1fr}
+  .lmwa-row-main,
+  .lmwa-row-actions{grid-column:auto}
+  .lmwa-dialog-actions{flex-direction:column-reverse}
+  .lmwa-dialog-actions .lmwa-button{width:100%}
 }
 </style>

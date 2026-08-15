@@ -1,4 +1,4 @@
-# L&M Warranty V8.3 — Shopify OTP cho cả Admin và Khách
+# L&M Warranty V8.7 — Shopify OTP cho cả Admin và Khách
 
 ## Điểm thay đổi chính
 
@@ -385,7 +385,7 @@ Browser không truy cập RTDB trực tiếp.
 Firebase Admin SDK trên Vercel tiếp tục hoạt động.
 
 
-## V8.3 Theme Check fix
+## V8.7 Theme Check fix
 
 Fixed Shopify `LiquidHTMLSyntaxError` around the edit form by replacing block-level
 `div` wrappers nested inside `label` with inline `span` wrappers for
@@ -394,7 +394,7 @@ Fixed Shopify `LiquidHTMLSyntaxError` around the edit form by replacing block-le
 Also updated stale Firebase Authentication wording in the Admin UI.
 
 
-## V8.3 Shopify customer-tag fix
+## V8.7 Shopify customer-tag fix
 
 Admin security tag format is now:
 
@@ -415,11 +415,11 @@ openssl rand -hex 32
 The old colon format `warranty-admin-key:...` is no longer used.
 
 
-## V8.3 — Vercel ERR_REQUIRE_ESM fix
+## V8.7 — Vercel ERR_REQUIRE_ESM fix
 
 Removed the unused Firebase Authentication import from `lib/firebase.js`.
 
-V8/V8.3 does not use Firebase Authentication, so this import was unnecessary:
+V8/V8.7 does not use Firebase Authentication, so this import was unnecessary:
 
 ```js
 import { getAuth } from "firebase-admin/auth";
@@ -456,4 +456,51 @@ This avoids loading the Firebase Auth/App Check dependency path that can reach
 }
 ```
 
-After pushing V8.3, redeploy Vercel with a clean dependency install.
+After pushing V8.7, redeploy Vercel with a clean dependency install.
+
+
+## V8.7 — UI polish
+
+- Premium deep-green corporate visual refresh for Admin and Customer activation pages.
+- Better card hierarchy, typography, spacing, pills, form states and mobile density.
+- No provider/infrastructure wording is shown in the two Shopify pages.
+- Production API base is preconfigured in both Liquid files.
+
+
+## V8.7 — Form polish
+- Premium field-shell styling for all Admin inputs/selects.
+- Stronger focus/hover hierarchy.
+- Cleaner readonly and auto-detected brand fields.
+- Improved composite warranty-code and duration controls.
+- Customer activation form upgraded to match the same premium design language.
+
+
+## V8.7 — Clean customer/admin UI
+- Removed customer benefit pills.
+- Removed visible Admin security-key implementation wording.
+- Security key mechanism remains server-side/client-session plumbing and is not presented in the UI.
+
+
+## V8.7 — Full visual redesign
+- Removed “L&M WARRANTY OPERATIONS”.
+- Rebuilt Admin input/select visual hierarchy.
+- Explicit native select markup for create/edit purchase location.
+- Restored native dropdown interaction with appearance:auto/menulist and pointer events.
+- Stronger typography, borders and darker corporate cards/pills.
+- Customer activation form received the same field-system redesign.
+
+
+## V8.8 — Already-activated customer flow
+- Customer matching now includes both pending and activated warranties.
+- If the unique matching warranty is already activated, API returns success with `alreadyActivated: true`.
+- Customer page shows “Phiếu bảo hành đã được kích hoạt trước đó” instead of a false not-found error.
+- No second activation is performed.
+
+
+## V8.9 — Fresh redesign
+- Removed every previous Admin and Customer style block.
+- Rebuilt both pages from scratch with one stylesheet per page.
+- Customer page uses a new editorial split layout.
+- Admin page uses a dark dashboard header and flat form fields instead of nested cards.
+- Native select behavior is preserved for purchase-location and brand dropdowns.
+- Backend logic remains the V8.8 already-activated flow.
