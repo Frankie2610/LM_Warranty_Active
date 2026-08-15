@@ -7,8 +7,8 @@ export default async function handler(req, res) {
     return json(res, 200, {
       ok: true,
       service: "lm-warranty-vercel",
-      version: "6.0.0",
-      auth: "firebase-email-link",
+      version: "8.2.0",
+      auth: "shopify-customer-account",
       appProxy: false
     });
   } catch (error) {

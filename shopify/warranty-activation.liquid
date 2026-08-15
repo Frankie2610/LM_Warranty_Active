@@ -1,0 +1,876 @@
+{% comment %}
+  L&M WARRANTY ACTIVATION — V7
+  Customer authentication: Shopify Customer Account / OTP.
+  No warranty-number input.
+
+  Match criteria:
+  - Shopify account email rendered by Liquid after sign-in
+  - Brand
+  - Phone number
+  - Purchase date
+
+  IMPORTANT:
+  Replace API_BASE after Vercel deployment.
+{% endcomment %}
+
+<script>
+(function(){
+  var src='https://cdn.shopify.com/storefront/web-components.js';
+
+  if(
+    !customElements.get('shopify-account') &&
+    !document.querySelector('script[src="'+src+'"]')
+  ){
+    var s=document.createElement('script');
+    s.src=src;
+    s.async=true;
+    document.head.appendChild(s);
+  }
+})();
+</script>
+
+<section class="lmwa-customer">
+
+{% if customer %}
+
+  <script id="lmwa-shopify-customer" type="application/json">
+    {
+      "id": {{ customer.id | json }},
+      "email": {{ customer.email | json }},
+      "firstName": {{ customer.first_name | json }},
+      "lastName": {{ customer.last_name | json }}
+    }
+  </script>
+
+  <div class="lmwa-c-card">
+    <header>
+      <div class="lmwa-c-kicker">L&amp;M WARRANTY</div>
+      <h1>KÍCH HOẠT BẢO HÀNH</h1>
+      <p>
+        Chọn thương hiệu, nhập số điện thoại và ngày mua.
+        Hệ thống sẽ đối chiếu với email tài khoản Shopify vừa xác thực.
+      </p>
+    </header>
+
+    <div class="lmwa-c-verified-account">
+      <div>
+        <span>Email tài khoản Shopify</span>
+        <strong>{{ customer.email | escape }}</strong>
+      </div>
+
+      <shopify-account menu="customer-account-main-menu"></shopify-account>
+    </div>
+
+    <div class="lmwa-c-progress">
+      <div class="done">
+        <span>01</span>
+        <strong>Email đã xác thực</strong>
+      </div>
+
+      <i></i>
+
+      <div class="active" data-step="2">
+        <span>02</span>
+        <strong>Đối chiếu giao dịch</strong>
+      </div>
+
+      <i></i>
+
+      <div data-step="3">
+        <span>03</span>
+        <strong>Hoàn tất</strong>
+      </div>
+    </div>
+
+    <form id="customer-form" novalidate>
+
+      <label>
+        <span>Thương hiệu *</span>
+
+        <select id="a-brand" required>
+          <option value="">Chọn thương hiệu</option>
+          <option value="GUESS">GUESS</option>
+          <option value="TED BAKER">TED BAKER</option>
+          <option value="PHILIPP PLEIN">PHILIPP PLEIN</option>
+          <option value="ADIDAS">ADIDAS</option>
+          <option value="FURLA">FURLA</option>
+          <option value="LOCMAN ITALY">LOCMAN ITALY</option>
+          <option value="VERSUS BY VERSACE">VERSUS BY VERSACE</option>
+          <option value="MISSONI">MISSONI</option>
+        </select>
+
+        <small>Chọn đúng thương hiệu trên sản phẩm đã mua.</small>
+      </label>
+
+      <label>
+        <span>Số điện thoại *</span>
+
+        <input
+          id="a-phone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          placeholder="Nhập số điện thoại khi mua hàng"
+          required
+        >
+      </label>
+
+      <label>
+        <span>Ngày mua *</span>
+
+        <input
+          id="a-date"
+          type="date"
+          required
+        >
+
+        <small>Ngày mua phải trùng với thông tin phiếu bảo hành đã được tạo.</small>
+      </label>
+
+      <div class="lmwa-c-match-note">
+        <strong>Thông tin được đối chiếu</strong>
+
+        <span>
+          Thương hiệu + Số điện thoại + Ngày mua + Email tài khoản Shopify.
+        </span>
+      </div>
+
+      <button id="a-submit" type="submit">
+        KÍCH HOẠT BẢO HÀNH ONLINE
+      </button>
+    </form>
+
+    <div id="a-message" class="lmwa-c-message" hidden></div>
+
+    <section id="a-result" class="lmwa-c-result" hidden></section>
+  </div>
+
+{% else %}
+
+  <div class="lmwa-c-card lmwa-login-card">
+    <header>
+      <div class="lmwa-c-kicker">L&amp;M WARRANTY</div>
+      <h1>KÍCH HOẠT BẢO HÀNH</h1>
+
+      <p>
+        Vui lòng xác thực email bằng tài khoản khách hàng Shopify trước khi
+        kích hoạt bảo hành online.
+      </p>
+    </header>
+
+    <div class="lmwa-shopify-auth">
+      <div class="lmwa-c-kicker">XÁC THỰC EMAIL</div>
+
+      <h2>Tiếp tục bằng mã OTP</h2>
+
+      <p>
+        Shopify sẽ thực hiện bước đăng nhập/xác thực tài khoản.
+        Sau khi hoàn tất, trang sẽ tự tải lại để tiếp tục kích hoạt.
+      </p>
+
+      <shopify-account
+        id="lmwa-customer-account"
+        menu="customer-account-main-menu"
+      >
+        <button
+          type="button"
+          slot="signed-out-avatar"
+          class="lmwa-shopify-login-button"
+        >
+          XÁC THỰC EMAIL SHOPIFY
+        </button>
+      </shopify-account>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    function bindShopifyAccount(){
+      var account=document.getElementById('lmwa-customer-account');
+
+      if(!account || account.dataset.bound==='1') return;
+
+      account.dataset.bound='1';
+
+      account.addEventListener('close',function(){
+        setTimeout(function(){
+          window.location.reload();
+        },850);
+      });
+    }
+
+    if(customElements.get('shopify-account')){
+      bindShopifyAccount();
+    }else{
+      customElements
+        .whenDefined('shopify-account')
+        .then(bindShopifyAccount)
+        .catch(function(){});
+    }
+  })();
+  </script>
+
+{% endif %}
+
+</section>
+
+{% if customer %}
+
+<script>
+(function(){
+  /* =======================================================
+     CHANGE THIS AFTER VERCEL DEPLOYMENT
+  ======================================================= */
+  const API_BASE =
+    'https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app/api/warranty';
+
+  const customerData=JSON.parse(
+    document.getElementById('lmwa-shopify-customer').textContent||'{}'
+  );
+
+  const form=document.getElementById('customer-form');
+  const submit=document.getElementById('a-submit');
+  const message=document.getElementById('a-message');
+  const result=document.getElementById('a-result');
+
+  const brand=document.getElementById('a-brand');
+  const phone=document.getElementById('a-phone');
+  const purchaseDate=document.getElementById('a-date');
+
+  const normalizePhone=(value)=>
+    String(value||'').replace(/[^\d+]/g,'').trim();
+
+  const esc=(value)=>{
+    const div=document.createElement('div');
+    div.textContent=value==null?'':String(value);
+    return div.innerHTML;
+  };
+
+  function show(type,text){
+    message.hidden=false;
+    message.className='lmwa-c-message '+type;
+    message.textContent=text;
+  }
+
+  function hide(){
+    message.hidden=true;
+    message.textContent='';
+  }
+
+  function setFinalStep(){
+    var steps=document.querySelectorAll('[data-step]');
+
+    steps.forEach(function(step){
+      step.classList.remove('active');
+    });
+
+    var finalStep=document.querySelector('[data-step="3"]');
+
+    if(finalStep){
+      finalStep.classList.add('active');
+    }
+  }
+
+  form.addEventListener('submit',async function(event){
+    event.preventDefault();
+
+    hide();
+    result.hidden=true;
+
+    const payload={
+      brand:String(brand.value||'').trim(),
+      phone:normalizePhone(phone.value),
+      purchaseDate:String(purchaseDate.value||'').trim(),
+      shopifyEmail:String(customerData.email||'').trim().toLowerCase()
+    };
+
+    if(!payload.shopifyEmail){
+      return show(
+        'error',
+        'Không xác định được email tài khoản Shopify. Vui lòng đăng nhập lại.'
+      );
+    }
+
+    if(!payload.brand){
+      return show('error','Vui lòng chọn thương hiệu.');
+    }
+
+    if(payload.phone.length<9 || payload.phone.length>15){
+      return show('error','Số điện thoại chưa hợp lệ.');
+    }
+
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(payload.purchaseDate)){
+      return show('error','Vui lòng chọn ngày mua.');
+    }
+
+    const original=submit.textContent;
+
+    submit.disabled=true;
+    submit.textContent='ĐANG ĐỐI CHIẾU';
+
+    try{
+      const response=await fetch(
+        API_BASE+'/customer/activate',
+        {
+          method:'POST',
+          cache:'no-store',
+          headers:{
+            Accept:'application/json',
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify(payload)
+        }
+      );
+
+      const data=await response.json().catch(function(){
+        return {};
+      });
+
+      if(!response.ok){
+        throw new Error(
+          data.error||
+          'Không tìm thấy phiếu bảo hành phù hợp với thông tin đã cung cấp.'
+        );
+      }
+
+      form.hidden=true;
+      hide();
+      setFinalStep();
+
+      result.hidden=false;
+
+      result.innerHTML=`
+        <div class="lmwa-c-kicker">KÍCH HOẠT HOÀN TẤT</div>
+
+        <h2>Bảo hành đã được kích hoạt</h2>
+
+        <p>
+          Thông tin giao dịch đã được đối chiếu thành công.
+          Bảo hành online của sản phẩm hiện đã có hiệu lực.
+        </p>
+
+        <div class="lmwa-result-grid">
+          <div>
+            <span>Số bảo hành</span>
+            <strong>${esc(data.warrantyNumber||'—')}</strong>
+          </div>
+
+          <div>
+            <span>Thương hiệu</span>
+            <strong>${esc(data.brand||payload.brand)}</strong>
+          </div>
+
+          <div>
+            <span>SKU</span>
+            <strong>${esc(data.sku||'—')}</strong>
+          </div>
+
+          <div>
+            <span>Email xác thực</span>
+            <strong>${esc(customerData.email||'—')}</strong>
+          </div>
+        </div>
+      `;
+
+    }catch(error){
+      console.error(error);
+
+      show(
+        'error',
+        error.message||
+        'Không thể kích hoạt bảo hành với thông tin đã cung cấp.'
+      );
+
+    }finally{
+      submit.disabled=false;
+      submit.textContent=original;
+    }
+  });
+})();
+</script>
+
+{% endif %}
+
+<style>
+.lmwa-customer{
+  --g:rgb(39 70 49);
+  --gh:rgb(31 58 40);
+  --gs:rgba(39,70,49,.055);
+  --gb:rgba(39,70,49,.18);
+  --text:#202520;
+  --muted:#747a75;
+  --success:#2f6b43;
+  --success-bg:#eef7f0;
+  --success-border:#cfe3d4;
+  --danger:#874742;
+  --danger-bg:#fff4f2;
+  --danger-border:#efd3ce;
+
+  max-width:790px;
+  margin:0 auto;
+  padding:56px 18px 72px;
+
+  color:var(--text);
+}
+
+.lmwa-customer *{
+  box-sizing:border-box;
+}
+
+.lmwa-c-card{
+  position:relative;
+
+  padding:52px 56px;
+
+  background:#fff;
+
+  border:1px solid #dfe2df;
+  border-radius:6px;
+
+  box-shadow:0 20px 60px rgba(0,0,0,.04);
+}
+
+.lmwa-c-card:before{
+  content:"";
+
+  position:absolute;
+
+  top:0;
+  left:56px;
+  right:56px;
+
+  height:2px;
+
+  background:var(--g);
+}
+
+.lmwa-c-card>header{
+  max-width:590px;
+
+  margin:0 auto 34px;
+
+  text-align:center;
+}
+
+.lmwa-c-kicker{
+  color:var(--g);
+
+  font-size:11px;
+  font-weight:650;
+
+  letter-spacing:.19em;
+}
+
+.lmwa-c-card h1{
+  margin:15px 0 0;
+
+  font-size:31px;
+  font-weight:520;
+
+  letter-spacing:.05em;
+}
+
+.lmwa-c-card header p,
+.lmwa-shopify-auth p,
+.lmwa-c-result p{
+  color:var(--muted);
+
+  font-size:14px;
+
+  line-height:1.7;
+}
+
+.lmwa-c-verified-account{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:16px;
+
+  margin-bottom:27px;
+  padding:14px 15px 14px 17px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f7fbf8,
+      #f1f7f2
+    );
+
+  border:1px solid var(--success-border);
+  border-radius:5px;
+}
+
+.lmwa-c-verified-account span,
+.lmwa-c-verified-account strong{
+  display:block;
+}
+
+.lmwa-c-verified-account span{
+  color:#69806f;
+
+  font-size:10px;
+}
+
+.lmwa-c-verified-account strong{
+  margin-top:4px;
+
+  color:var(--success);
+
+  font-size:13px;
+  font-weight:650;
+}
+
+.lmwa-c-progress{
+  display:flex;
+  align-items:center;
+
+  margin-bottom:31px;
+  padding:0 6px 25px;
+
+  border-bottom:1px solid #eceeec;
+}
+
+.lmwa-c-progress>div{
+  min-width:90px;
+
+  color:#999e9a;
+
+  text-align:center;
+}
+
+.lmwa-c-progress span,
+.lmwa-c-progress strong{
+  display:block;
+}
+
+.lmwa-c-progress span{
+  font-size:10px;
+
+  letter-spacing:.16em;
+}
+
+.lmwa-c-progress strong{
+  margin-top:5px;
+
+  font-size:11px;
+  font-weight:550;
+}
+
+.lmwa-c-progress .active,
+.lmwa-c-progress .done{
+  color:var(--g);
+}
+
+.lmwa-c-progress i{
+  flex:1;
+
+  height:1px;
+
+  margin:0 8px 15px;
+
+  background:#dfe2df;
+}
+
+#customer-form{
+  display:grid;
+
+  gap:20px;
+}
+
+#customer-form label>span{
+  display:block;
+
+  margin-bottom:8px;
+
+  font-size:13px;
+  font-weight:600;
+}
+
+#customer-form label>small{
+  display:block;
+
+  margin-top:7px;
+
+  color:#808681;
+
+  font-size:11px;
+
+  line-height:1.5;
+}
+
+#customer-form input,
+#customer-form select{
+  width:100%;
+  height:55px;
+
+  padding:0 15px;
+
+  outline:none;
+
+  border:1px solid #d5d9d5;
+  border-radius:4px;
+
+  background:#fff;
+
+  color:var(--text);
+
+  font:inherit;
+  font-size:16px;
+}
+
+#customer-form input:focus,
+#customer-form select:focus{
+  border-color:var(--g);
+
+  box-shadow:
+    0 0 0 3px var(--gs);
+}
+
+.lmwa-c-match-note{
+  padding:15px 16px;
+
+  background:#f8faf8;
+
+  border:1px solid #e3e7e3;
+  border-radius:5px;
+}
+
+.lmwa-c-match-note strong,
+.lmwa-c-match-note span{
+  display:block;
+}
+
+.lmwa-c-match-note strong{
+  color:#414742;
+
+  font-size:12px;
+}
+
+.lmwa-c-match-note span{
+  margin-top:5px;
+
+  color:var(--muted);
+
+  font-size:11px;
+
+  line-height:1.55;
+}
+
+#a-submit,
+.lmwa-shopify-login-button{
+  width:100%;
+  min-height:57px;
+
+  padding:14px 20px;
+
+  border:1px solid var(--g);
+  border-radius:4px;
+
+  background:var(--g);
+
+  color:#fff;
+
+  cursor:pointer;
+
+  font:inherit;
+  font-size:13px;
+  font-weight:650;
+
+  letter-spacing:.085em;
+}
+
+#a-submit:hover,
+.lmwa-shopify-login-button:hover{
+  background:var(--gh);
+}
+
+#a-submit:disabled{
+  opacity:.6;
+
+  cursor:wait;
+}
+
+.lmwa-c-message{
+  margin-top:17px;
+  padding:13px 15px;
+
+  border-radius:4px;
+
+  font-size:12px;
+
+  line-height:1.6;
+}
+
+.lmwa-c-message.error{
+  color:var(--danger);
+
+  background:var(--danger-bg);
+
+  border:1px solid var(--danger-border);
+}
+
+.lmwa-c-message.success{
+  color:var(--success);
+
+  background:var(--success-bg);
+
+  border:1px solid var(--success-border);
+}
+
+.lmwa-c-result{
+  margin-top:25px;
+  padding:31px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #fbfdfb,
+      var(--success-bg)
+    );
+
+  border:1px solid var(--success-border);
+  border-radius:5px;
+
+  text-align:center;
+}
+
+.lmwa-c-result h2{
+  margin:10px 0 0;
+
+  font-size:23px;
+  font-weight:540;
+}
+
+.lmwa-result-grid{
+  display:grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:1px;
+
+  margin-top:23px;
+
+  overflow:hidden;
+
+  background:var(--success-border);
+
+  border:1px solid var(--success-border);
+  border-radius:5px;
+
+  text-align:left;
+}
+
+.lmwa-result-grid>div{
+  padding:15px;
+
+  background:#fff;
+}
+
+.lmwa-result-grid span,
+.lmwa-result-grid strong{
+  display:block;
+}
+
+.lmwa-result-grid span{
+  color:var(--muted);
+
+  font-size:10px;
+}
+
+.lmwa-result-grid strong{
+  margin-top:5px;
+
+  color:#364039;
+
+  font-size:12px;
+}
+
+.lmwa-shopify-auth{
+  padding:31px;
+
+  background:#fafbfa;
+
+  border:1px solid var(--gb);
+  border-radius:5px;
+
+  text-align:center;
+}
+
+.lmwa-shopify-auth h2{
+  margin:10px 0 0;
+
+  font-size:22px;
+  font-weight:540;
+}
+
+#lmwa-customer-account{
+  display:block;
+
+  width:100%;
+
+  margin-top:20px;
+
+  --shopify-account-color-accent:rgb(39 70 49);
+  --shopify-account-radius-base:4px;
+  --shopify-account-radius-dialog:8px;
+}
+
+#lmwa-customer-account::part(signed-out-avatar){
+  width:100%;
+  height:auto;
+
+  padding:0;
+
+  border:0;
+  border-radius:4px;
+
+  background:var(--g);
+}
+
+@media(max-width:600px){
+
+  .lmwa-customer{
+    padding:24px 10px 42px;
+  }
+
+  .lmwa-c-card{
+    padding:35px 17px;
+
+    box-shadow:none;
+  }
+
+  .lmwa-c-card:before{
+    left:17px;
+    right:17px;
+  }
+
+  .lmwa-c-card h1{
+    font-size:25px;
+  }
+
+  .lmwa-c-verified-account{
+    align-items:flex-start;
+  }
+
+  .lmwa-c-progress>div{
+    min-width:65px;
+  }
+
+  .lmwa-c-progress strong{
+    font-size:9px;
+  }
+
+  .lmwa-c-result,
+  .lmwa-shopify-auth{
+    padding:25px 15px;
+  }
+
+  .lmwa-result-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+
+</style>

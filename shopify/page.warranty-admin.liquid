@@ -1,0 +1,1290 @@
+{% comment %}
+  L&M WARRANTY ADMIN — V8
+  AUTH: Shopify Customer Account / OTP + Liquid tag gate.
+
+  Required customer tags on each Admin Shopify customer:
+  1) warranty-admin
+  2) warranty-admin-key-YOUR_RANDOM_KEY
+
+  The random key after "warranty-admin-key-" must exactly equal
+  Vercel env WARRANTY_ADMIN_ACCESS_KEY.
+
+  Firebase Authentication is NOT used.
+  Firebase is only the Realtime Database behind Vercel Admin SDK.
+
+  IMPORTANT:
+  Replace API_BASE in the script after Vercel deployment.
+{% endcomment %}
+
+<script>
+(function(){
+  var src='https://cdn.shopify.com/storefront/web-components.js';
+
+  if(
+    !customElements.get('shopify-account') &&
+    !document.querySelector('script[src="'+src+'"]')
+  ){
+    var s=document.createElement('script');
+    s.src=src;
+    s.async=true;
+    document.head.appendChild(s);
+  }
+})();
+</script>
+
+{% assign warranty_admin_tag = 'warranty-admin' %}
+{% assign warranty_admin_key = '' %}
+
+{% if customer %}
+  {% for tag in customer.tags %}
+    {% if tag contains 'warranty-admin-key-' %}
+      {% assign warranty_admin_key = tag | remove_first: 'warranty-admin-key-' | strip %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+<section class="lmwa">
+  <div class="lmwa-shell">
+
+  {% if customer %}
+
+    {% if customer.tags contains warranty_admin_tag %}
+
+      {% if warranty_admin_key != blank %}
+
+        <script id="lmwa-shopify-admin-data" type="application/json">
+          {
+            "id": {{ customer.id | json }},
+            "email": {{ customer.email | json }},
+            "firstName": {{ customer.first_name | json }},
+            "lastName": {{ customer.last_name | json }},
+            "adminAccessKey": {{ warranty_admin_key | json }}
+          }
+        </script>
+
+<section id="lmwa-admin">
+      <header class="lmwa-top">
+        <div>
+          <div class="lmwa-kicker">L&amp;M WARRANTY OPERATIONS</div>
+          <h1>QUẢN LÝ BẢO HÀNH</h1>
+          <p>Tạo phiếu, tra cứu, chỉnh sửa và quản lý trạng thái bảo hành trên một giao diện vận hành tập trung.</p>
+        </div>
+
+        <div class="lmwa-user">
+          <div>
+            <span>Tài khoản quản trị</span>
+            <strong id="lmwa-current-email">—</strong>
+          </div>
+          <shopify-account menu="customer-account-main-menu"></shopify-account>
+        </div>
+      </header>
+
+      <div id="lmwa-secure" class="lmwa-secure ready">
+        <span>SECURE</span>
+        <div>
+          <strong>Phiên dữ liệu đã được xác minh</strong>
+          <small>Shopify Customer Account → Vercel → Realtime Database.</small>
+        </div>
+      </div>
+
+      <section class="lmwa-stats">
+        <article class="lmwa-stat total">
+          <span>Tổng phiếu</span>
+          <strong id="stat-total">0</strong>
+          <small>Toàn bộ số bảo hành</small>
+        </article>
+        <article class="lmwa-stat pending">
+          <span>Chưa kích hoạt</span>
+          <strong id="stat-pending">0</strong>
+          <small>Đang chờ khách xác thực</small>
+        </article>
+        <article class="lmwa-stat activated">
+          <span>Đã kích hoạt</span>
+          <strong id="stat-activated">0</strong>
+          <small>Đã hoàn tất xác thực</small>
+        </article>
+      </section>
+
+      <nav class="lmwa-tabs">
+        <button type="button" class="lmwa-tab active" data-tab="create">TẠO PHIẾU</button>
+        <button type="button" class="lmwa-tab" data-tab="list">DANH SÁCH</button>
+      </nav>
+
+      <section class="lmwa-panel active" data-panel="create">
+        <header class="lmwa-section-header">
+          <div>
+            <div class="lmwa-kicker">PHIẾU BẢO HÀNH MỚI</div>
+            <h2>Thông tin khách hàng và sản phẩm</h2>
+          </div>
+          <p>Dữ liệu chỉ được ghi sau khi Vercel xác minh quyền truy cập quản trị.</p>
+        </header>
+
+        <form id="create-form" novalidate>
+          <div class="lmwa-form-card">
+            <div class="lmwa-form-title">
+              <span>01</span>
+              <div>
+                <strong>Thông tin khách hàng</strong>
+                <small>Dữ liệu phục vụ kích hoạt và tra cứu bảo hành.</small>
+              </div>
+            </div>
+
+            <div class="lmwa-grid two">
+              <label class="lmwa-field">
+                <span>Họ và tên *</span>
+                <input id="c-name" autocomplete="name" required>
+              </label>
+
+              <label class="lmwa-field">
+                <span>Số điện thoại *</span>
+                <input id="c-phone" type="tel" inputmode="tel" autocomplete="tel" required>
+              </label>
+
+              <label class="lmwa-field full">
+                <span>Email *</span>
+                <input id="c-email" type="email" autocomplete="email" required>
+                <small>Email này phải trùng email khách xác thực khi kích hoạt.</small>
+              </label>
+            </div>
+          </div>
+
+          <div class="lmwa-form-card">
+            <div class="lmwa-form-title">
+              <span>02</span>
+              <div>
+                <strong>Thông tin sản phẩm</strong>
+                <small>SKU luôn IN HOA, thương hiệu tự nhận diện và bảo hành cố định 24 tháng.</small>
+              </div>
+            </div>
+
+            <div class="lmwa-grid two">
+              <label class="lmwa-field">
+                <span>SKU sản phẩm *</span>
+                <input id="c-sku" class="uppercase" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="Ví dụ: AOFH22514" required>
+                <small>Hệ thống tự chuyển SKU sang chữ IN HOA.</small>
+              </label>
+
+              <label class="lmwa-field brand-field" id="c-brand-field">
+                <span>Thương hiệu</span>
+                <input id="c-brand" class="readonly" readonly tabindex="-1" placeholder="Tự nhận diện từ SKU">
+                <small id="c-brand-note">Tự nhận diện theo cấu trúc SKU.</small>
+              </label>
+
+              <label class="lmwa-field full">
+                <span>Tên sản phẩm</span>
+                <input id="c-product-name" autocomplete="off">
+              </label>
+
+              <label class="lmwa-field">
+                <span>Ngày mua *</span>
+                <input id="c-date" type="date" required>
+              </label>
+
+              <label class="lmwa-field">
+                <span>Thời hạn bảo hành</span>
+                <span class="lmwa-suffix">
+                  <input class="readonly" value="24" readonly tabindex="-1>
+                  <span>tháng</span>
+                </span>
+              </label>
+
+              <label class="lmwa-field">
+                <span>Nơi mua</span>
+                <select id="c-location">
+                  <option value="Showroom L&M">Showroom L&amp;M</option>
+                  <option value="Online">Online</option>
+                  <option value="Đại lý">Đại lý</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </label>
+
+              <div class="lmwa-field">
+                <span>Số bảo hành *</span>
+                <div class="lmwa-code-field">
+                  <input id="c-code" autocomplete="off" spellcheck="false" required>
+                  <button type="button" id="generate-code">TỰ SINH</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="create-message" class="lmwa-message" hidden></div>
+
+          <div class="lmwa-actions">
+            <button type="button" class="lmwa-button secondary" id="reset-create">LÀM MỚI</button>
+            <button type="submit" class="lmwa-button primary" id="save-create">TẠO PHIẾU BẢO HÀNH</button>
+          </div>
+        </form>
+
+        <section id="create-result" class="lmwa-created" hidden></section>
+      </section>
+
+      <section class="lmwa-panel" data-panel="list">
+        <header class="lmwa-list-header">
+          <div>
+            <div class="lmwa-kicker">DỮ LIỆU BẢO HÀNH</div>
+            <h2>Danh sách phiếu bảo hành</h2>
+          </div>
+
+          <div class="lmwa-header-actions">
+            <button type="button" class="lmwa-button secondary compact" id="migrate-old">ĐỒNG BỘ DỮ LIỆU CŨ</button>
+            <button type="button" class="lmwa-button secondary compact" id="refresh-list">LÀM MỚI</button>
+          </div>
+        </header>
+
+        <div id="migration-message" class="lmwa-message" hidden></div>
+
+        <div class="lmwa-tools">
+          <label>
+            <span>Tìm kiếm</span>
+            <input id="search-list" type="search" placeholder="Mã bảo hành, SKU, thương hiệu, tên, SĐT hoặc email">
+          </label>
+          <label>
+            <span>Trạng thái</span>
+            <select id="filter-status">
+              <option value="all">Tất cả</option>
+              <option value="pending">Chưa kích hoạt</option>
+              <option value="activated">Đã kích hoạt</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="list-meta" class="lmwa-list-meta"></div>
+        <div id="warranty-list" class="lmwa-list"></div>
+
+        <div id="pagination" class="lmwa-pagination" hidden>
+          <div id="pagination-summary"></div>
+          <nav>
+            <button type="button" id="page-prev">TRƯỚC</button>
+            <div id="page-numbers" class="lmwa-page-numbers"></div>
+            <button type="button" id="page-next">SAU</button>
+          </nav>
+        </div>
+      </section>
+
+      <div id="edit-modal" class="lmwa-modal" hidden>
+        <div class="lmwa-backdrop" data-close-edit></div>
+        <section class="lmwa-dialog" role="dialog" aria-modal="true">
+          <header class="lmwa-dialog-header">
+            <div>
+              <div class="lmwa-kicker">CHỈNH SỬA PHIẾU</div>
+              <h2>Cập nhật thông tin bảo hành</h2>
+              <p>Mọi thay đổi được xác thực lại trên Vercel trước khi cập nhật dữ liệu.</p>
+            </div>
+            <button type="button" class="lmwa-close" data-close-edit>ĐÓNG</button>
+          </header>
+
+          <form id="edit-form" novalidate>
+            <input id="e-original-code" type="hidden">
+
+            <div class="lmwa-current-status">
+              <span>Trạng thái hiện tại</span>
+              <strong id="e-status"></strong>
+            </div>
+
+            <div class="lmwa-grid two">
+              <label class="lmwa-field">
+                <span>Số bảo hành *</span>
+                <input id="e-code" required>
+              </label>
+              <label class="lmwa-field">
+                <span>SKU sản phẩm *</span>
+                <input id="e-sku" class="uppercase" required>
+              </label>
+              <label class="lmwa-field brand-field" id="e-brand-field">
+                <span>Thương hiệu</span>
+                <input id="e-brand" class="readonly" readonly tabindex="-1">
+                <small id="e-brand-note">Tự nhận diện từ SKU.</small>
+              </label>
+              <label class="lmwa-field">
+                <span>Tên sản phẩm</span>
+                <input id="e-product-name">
+              </label>
+              <label class="lmwa-field">
+                <span>Họ và tên *</span>
+                <input id="e-name" required>
+              </label>
+              <label class="lmwa-field">
+                <span>Số điện thoại *</span>
+                <input id="e-phone" type="tel" inputmode="tel" required>
+              </label>
+              <label class="lmwa-field full">
+                <span>Email *</span>
+                <input id="e-email" type="email" required>
+              </label>
+              <label class="lmwa-field">
+                <span>Ngày mua *</span>
+                <input id="e-date" type="date" required>
+              </label>
+              <label class="lmwa-field">
+                <span>Thời hạn bảo hành</span>
+                <span class="lmwa-suffix">
+                  <input class="readonly" value="24" readonly tabindex="-1>
+                  <span>tháng</span>
+                </span>
+              </label>
+              <label class="lmwa-field full">
+                <span>Nơi mua</span>
+                <select id="e-location">
+                  <option value="Showroom L&M">Showroom L&amp;M</option>
+                  <option value="Online">Online</option>
+                  <option value="Đại lý">Đại lý</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </label>
+            </div>
+
+            <div id="edit-message" class="lmwa-message" hidden></div>
+
+            <div class="lmwa-dialog-actions">
+              <button type="button" class="lmwa-button secondary" data-close-edit>HỦY</button>
+              <button type="submit" class="lmwa-button primary" id="save-edit">LƯU THAY ĐỔI</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div id="delete-modal" class="lmwa-modal" hidden>
+        <div class="lmwa-backdrop" data-close-delete></div>
+        <section class="lmwa-dialog delete-dialog" role="dialog" aria-modal="true">
+          <header class="lmwa-dialog-header">
+            <div>
+              <div class="lmwa-kicker danger-text">XÓA PHIẾU BẢO HÀNH</div>
+              <h2>Xác nhận xóa dữ liệu</h2>
+              <p>Hệ thống sẽ xóa số bảo hành và giao dịch bảo hành tương ứng.</p>
+            </div>
+          </header>
+
+          <div class="lmwa-delete-code">
+            <span>Số bảo hành</span>
+            <strong id="delete-code"></strong>
+          </div>
+
+          <div id="delete-message" class="lmwa-message error" hidden></div>
+
+          <div class="lmwa-dialog-actions">
+            <button type="button" class="lmwa-button secondary" data-close-delete>HỦY</button>
+            <button type="button" class="lmwa-button danger" id="confirm-delete">XÓA PHIẾU</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+      {% else %}
+
+        <section class="lmwa-auth-view">
+          <div class="lmwa-auth-card">
+            <div class="lmwa-kicker">L&amp;M INTERNAL</div>
+            <h1>CHƯA HOÀN TẤT CẤU HÌNH</h1>
+            <p>
+              Tài khoản đã có quyền quản trị nhưng chưa có Warranty Admin Access Key.
+              Vui lòng bổ sung tag bảo mật cho tài khoản Shopify này.
+            </p>
+
+            <div class="lmwa-auth-note">
+              <strong>Tag cần có</strong>
+              <span>warranty-admin-key-YOUR_RANDOM_KEY</span>
+            </div>
+
+            <shopify-account menu="customer-account-main-menu"></shopify-account>
+          </div>
+        </section>
+
+      {% endif %}
+
+    {% else %}
+
+      <section class="lmwa-auth-view">
+        <div class="lmwa-auth-card">
+          <div class="lmwa-kicker">L&amp;M INTERNAL</div>
+          <h1>KHÔNG CÓ QUYỀN TRUY CẬP</h1>
+          <p>
+            Email Shopify đã được xác thực nhưng tài khoản này chưa được cấp
+            quyền quản trị bảo hành.
+          </p>
+
+          <div class="lmwa-auth-note">
+            <strong>Tài khoản hiện tại</strong>
+            <span>{{ customer.email | escape }}</span>
+          </div>
+
+          <shopify-account menu="customer-account-main-menu"></shopify-account>
+        </div>
+      </section>
+
+    {% endif %}
+
+  {% else %}
+
+    <section class="lmwa-auth-view">
+      <div class="lmwa-auth-card">
+        <div class="lmwa-kicker">L&amp;M INTERNAL</div>
+        <h1>QUẢN LÝ BẢO HÀNH</h1>
+        <p>
+          Vui lòng xác thực tài khoản Shopify bằng luồng Customer Account
+          trước khi truy cập khu vực quản trị bảo hành.
+        </p>
+
+        <div class="lmwa-shopify-auth">
+          <div class="lmwa-kicker">XÁC THỰC TÀI KHOẢN</div>
+          <h2>Tiếp tục bằng Shopify</h2>
+          <p>
+            Shopify sẽ thực hiện đăng nhập/passwordless verification.
+            Sau khi hoàn tất, trang sẽ tự tải lại.
+          </p>
+
+          <shopify-account
+            id="lmwa-admin-account"
+            menu="customer-account-main-menu"
+          >
+            <button
+              type="button"
+              slot="signed-out-avatar"
+              class="lmwa-button primary full"
+            >
+              XÁC THỰC TÀI KHOẢN SHOPIFY
+            </button>
+          </shopify-account>
+        </div>
+      </div>
+    </section>
+
+    <script>
+    (function(){
+      function bindAccount(){
+        var account=document.getElementById('lmwa-admin-account');
+
+        if(!account || account.dataset.bound==='1') return;
+
+        account.dataset.bound='1';
+
+        account.addEventListener('close',function(){
+          setTimeout(function(){
+            window.location.reload();
+          },850);
+        });
+      }
+
+      if(customElements.get('shopify-account')){
+        bindAccount();
+      }else{
+        customElements.whenDefined('shopify-account').then(bindAccount).catch(function(){});
+      }
+    })();
+    </script>
+
+  {% endif %}
+
+  </div>
+</section>
+
+{% if customer %}
+  {% if customer.tags contains warranty_admin_tag %}
+    {% if warranty_admin_key != blank %}
+
+<script>
+
+const shopifyAdminNode = document.getElementById('lmwa-shopify-admin-data');
+const SHOPIFY_ADMIN = JSON.parse(shopifyAdminNode?.textContent || '{}');
+const ADMIN_ACCESS_KEY = String(SHOPIFY_ADMIN.adminAccessKey || '');
+
+if (!ADMIN_ACCESS_KEY) {
+  throw new Error('Không đọc được Warranty Admin Access Key từ tag Shopify của tài khoản này.');
+}
+
+if (ADMIN_ACCESS_KEY.length < 32) {
+  throw new Error('Warranty Admin Access Key phải dài tối thiểu 32 ký tự.');
+}
+
+/* =========================================================
+   CHANGE THIS ONE VALUE AFTER VERCEL DEPLOYMENT
+========================================================= */
+const API_BASE = 'https://REPLACE-WITH-YOUR-VERCEL-DOMAIN.vercel.app/api/warranty';
+
+const PAGE_SIZE = 50;
+
+const BRAND_RULES = [
+  ['GUESS', /^GW0/],
+  ['TED BAKER', /^BKP/],
+  ['PHILIPP PLEIN', /^PW/],
+  ['ADIDAS', /^AO/],
+  ['FURLA', /^WW/],
+  ['LOCMAN ITALY', /^(?:D\d{3}[A-Z]|0\d{3}[A-Z])/],
+  ['VERSUS BY VERSACE', /^VSP/],
+  ['MISSONI', /^MWY/]
+];
+
+const state = {
+  warranties: [],
+  page: 1,
+  deleteTarget: null,
+  authorized: false
+};
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  admin: $('lmwa-admin'),
+  currentEmail: $('lmwa-current-email'),
+
+  total: $('stat-total'),
+  pending: $('stat-pending'),
+  activated: $('stat-activated'),
+
+  createForm: $('create-form'),
+  createMessage: $('create-message'),
+  createResult: $('create-result'),
+  saveCreate: $('save-create'),
+  resetCreate: $('reset-create'),
+  generateCode: $('generate-code'),
+  cName: $('c-name'),
+  cPhone: $('c-phone'),
+  cEmail: $('c-email'),
+  cSku: $('c-sku'),
+  cBrand: $('c-brand'),
+  cBrandField: $('c-brand-field'),
+  cBrandNote: $('c-brand-note'),
+  cProductName: $('c-product-name'),
+  cDate: $('c-date'),
+  cLocation: $('c-location'),
+  cCode: $('c-code'),
+
+  list: $('warranty-list'),
+  listMeta: $('list-meta'),
+  search: $('search-list'),
+  filter: $('filter-status'),
+  refresh: $('refresh-list'),
+  migrate: $('migrate-old'),
+  migrationMessage: $('migration-message'),
+  pagination: $('pagination'),
+  paginationSummary: $('pagination-summary'),
+  pageNumbers: $('page-numbers'),
+  pagePrev: $('page-prev'),
+  pageNext: $('page-next'),
+
+  editModal: $('edit-modal'),
+  editForm: $('edit-form'),
+  editMessage: $('edit-message'),
+  eOriginalCode: $('e-original-code'),
+  eCode: $('e-code'),
+  eSku: $('e-sku'),
+  eBrand: $('e-brand'),
+  eBrandField: $('e-brand-field'),
+  eBrandNote: $('e-brand-note'),
+  eProductName: $('e-product-name'),
+  eName: $('e-name'),
+  ePhone: $('e-phone'),
+  eEmail: $('e-email'),
+  eDate: $('e-date'),
+  eLocation: $('e-location'),
+  eStatus: $('e-status'),
+  saveEdit: $('save-edit'),
+
+  deleteModal: $('delete-modal'),
+  deleteCode: $('delete-code'),
+  deleteMessage: $('delete-message'),
+  confirmDelete: $('confirm-delete')
+};
+
+const normalizeSku = (v) => String(v || '').trim().toUpperCase();
+const normalizeCode = (v) => String(v || '').trim().toUpperCase().replace(/\s+/g, '');
+const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
+const normalizePhone = (v) => String(v || '').replace(/[^\d+]/g, '').trim();
+
+function esc(v) {
+  const d = document.createElement('div');
+  d.textContent = v == null ? '' : String(v);
+  return d.innerHTML;
+}
+
+function detectBrand(v) {
+  const sku = normalizeSku(v);
+  const match = BRAND_RULES.find(([, re]) => re.test(sku));
+  return match ? match[0] : '';
+}
+
+function formatDate(v) {
+  if (!v) return '—';
+  const d = new Date(v + 'T00:00:00');
+  return Number.isNaN(d.getTime())
+    ? v
+    : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateTime(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+}
+
+function setToday() {
+  if (els.cDate.value) return;
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  els.cDate.value = local.toISOString().slice(0, 10);
+}
+
+function showMessage(el, type, text) {
+  el.hidden = false;
+  el.className = 'lmwa-message ' + type;
+  el.textContent = text;
+}
+
+function hideMessage(el) {
+  el.hidden = true;
+  el.textContent = '';
+  el.className = 'lmwa-message';
+}
+
+async function api(path, options = {}) {
+  const headers = {
+    Accept: 'application/json',
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.headers || {}),
+    'X-Warranty-Admin-Key': ADMIN_ACCESS_KEY,
+    'X-Shopify-Customer-Email': SHOPIFY_ADMIN.email || ''
+  };
+
+  const response = await fetch(API_BASE + path, {
+    cache: 'no-store',
+    ...options,
+    headers
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(payload.error || 'Yêu cầu không thành công.');
+    error.status = response.status;
+    throw error;
+  }
+
+  return payload;
+}
+
+function syncBrand(input, brandInput, field, note) {
+  const upper = normalizeSku(input.value);
+  if (input.value !== upper) input.value = upper;
+
+  const brand = detectBrand(upper);
+  brandInput.value = upper ? (brand || 'CHƯA NHẬN DIỆN') : '';
+
+  field.classList.toggle('recognized', Boolean(brand));
+  field.classList.toggle('unrecognized', Boolean(upper) && !brand);
+
+  note.textContent = !upper
+    ? 'Tự nhận diện theo cấu trúc SKU.'
+    : brand
+      ? `Đã nhận diện ${brand} · Bảo hành 24 tháng.`
+      : 'SKU chưa khớp 8 thương hiệu đang cấu hình.';
+
+  return brand;
+}
+
+const syncCreateBrand = () =>
+  syncBrand(els.cSku, els.cBrand, els.cBrandField, els.cBrandNote);
+
+const syncEditBrand = () =>
+  syncBrand(els.eSku, els.eBrand, els.eBrandField, els.eBrandNote);
+
+els.cSku.addEventListener('input', syncCreateBrand);
+els.eSku.addEventListener('input', syncEditBrand);
+
+els.cSku.addEventListener('blur', async () => {
+  const sku = normalizeSku(els.cSku.value);
+  syncCreateBrand();
+
+  if (!sku || els.cProductName.value.trim()) return;
+
+  try {
+    const data = await api('/admin/product?sku=' + encodeURIComponent(sku));
+    if (data.productName) els.cProductName.value = data.productName;
+  } catch (error) {
+    console.warn('Product lookup:', error);
+  }
+});
+
+document.querySelectorAll('.lmwa-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.lmwa-tab').forEach((x) => x.classList.toggle('active', x === tab));
+    document.querySelectorAll('.lmwa-panel').forEach((panel) => {
+      panel.classList.toggle('active', panel.dataset.panel === tab.dataset.tab);
+    });
+  });
+});
+
+function createPayload() {
+  return {
+    customerName: els.cName.value.trim(),
+    phone: normalizePhone(els.cPhone.value),
+    email: normalizeEmail(els.cEmail.value),
+    sku: normalizeSku(els.cSku.value),
+    productName: els.cProductName.value.trim(),
+    purchaseDate: els.cDate.value,
+    purchaseLocation: els.cLocation.value,
+    warrantyNumber: normalizeCode(els.cCode.value)
+  };
+}
+
+els.generateCode.addEventListener('click', async () => {
+  const original = els.generateCode.textContent;
+  els.generateCode.disabled = true;
+  els.generateCode.textContent = 'ĐANG TẠO';
+
+  try {
+    const data = await api('/admin/generate-code');
+    els.cCode.value = data.warrantyNumber || '';
+  } catch (error) {
+    showMessage(els.createMessage, 'error', error.message);
+  } finally {
+    els.generateCode.disabled = false;
+    els.generateCode.textContent = original;
+  }
+});
+
+els.createForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  hideMessage(els.createMessage);
+  els.createResult.hidden = true;
+
+  if (!syncCreateBrand()) {
+    return showMessage(els.createMessage, 'error', 'SKU chưa nhận diện được thương hiệu.');
+  }
+
+  const original = els.saveCreate.textContent;
+  els.saveCreate.disabled = true;
+  els.saveCreate.textContent = 'ĐANG LƯU';
+
+  try {
+    const result = await api('/admin/create', {
+      method: 'POST',
+      body: JSON.stringify(createPayload())
+    });
+
+    const w = result.warranty;
+
+    els.createResult.hidden = false;
+    els.createResult.innerHTML = `
+      <div class="lmwa-kicker">PHIẾU ĐÃ ĐƯỢC TẠO</div>
+      <h3>${esc(w.warranty_number)}</h3>
+      <p>Phiếu đang ở trạng thái chờ khách hàng kích hoạt.</p>
+      <div class="lmwa-created-grid">
+        <div><span>Khách hàng</span><strong>${esc(w.customer_name)}</strong></div>
+        <div><span>SKU</span><strong>${esc(w.sku)}</strong><small>${esc(w.brand)}</small></div>
+        <div><span>Ngày mua</span><strong>${esc(formatDate(w.purchase_date))}</strong></div>
+        <div><span>Thời hạn</span><strong>24 tháng</strong></div>
+      </div>
+    `;
+
+    els.createForm.reset();
+    els.cBrand.value = '';
+    setToday();
+    syncCreateBrand();
+
+    await loadWarranties();
+  } catch (error) {
+    showMessage(els.createMessage, 'error', error.message);
+  } finally {
+    els.saveCreate.disabled = false;
+    els.saveCreate.textContent = original;
+  }
+});
+
+els.resetCreate.addEventListener('click', () => {
+  els.createForm.reset();
+  els.cBrand.value = '';
+  els.createResult.hidden = true;
+  hideMessage(els.createMessage);
+  setToday();
+  syncCreateBrand();
+});
+
+async function loadWarranties() {
+  els.listMeta.textContent = 'Đang tải dữ liệu...';
+
+  try {
+    const data = await api('/admin/list');
+    state.warranties = Array.isArray(data.warranties) ? data.warranties : [];
+    state.page = 1;
+    updateStats();
+    renderList();
+  } catch (error) {
+    els.listMeta.textContent = 'Không thể tải dữ liệu.';
+    els.list.innerHTML = `<div class="lmwa-empty"><strong>Không thể tải danh sách</strong><span>${esc(error.message)}</span></div>`;
+  }
+}
+
+function updateStats() {
+  const total = state.warranties.length;
+  const activated = state.warranties.filter((x) => x.status === 'activated').length;
+  els.total.textContent = total.toLocaleString('vi-VN');
+  els.activated.textContent = activated.toLocaleString('vi-VN');
+  els.pending.textContent = (total - activated).toLocaleString('vi-VN');
+}
+
+function filtered() {
+  const q = String(els.search.value || '').trim().toLowerCase();
+  const f = els.filter.value;
+
+  return state.warranties.filter((item) => {
+    const statusOk =
+      f === 'all' ||
+      (f === 'activated' && item.status === 'activated') ||
+      (f === 'pending' && item.status !== 'activated');
+
+    if (!statusOk) return false;
+    if (!q) return true;
+
+    return [
+      item.warranty_number,
+      item.customer_name,
+      item.customer_phone,
+      item.customer_email,
+      item.sku,
+      item.brand,
+      item.product_name
+    ].join(' ').toLowerCase().includes(q);
+  });
+}
+
+function pageItems(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const arr = [1];
+  if (current > 4) arr.push('left');
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  for (let p = start; p <= end; p++) arr.push(p);
+
+  if (current < total - 3) arr.push('right');
+  arr.push(total);
+
+  return arr;
+}
+
+function renderPagination(total, start, end) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  if (total <= PAGE_SIZE) {
+    els.pagination.hidden = true;
+    return;
+  }
+
+  els.pagination.hidden = false;
+  els.paginationSummary.textContent =
+    `Hiển thị ${start + 1}–${end} trên ${total.toLocaleString('vi-VN')} phiếu`;
+
+  els.pagePrev.disabled = state.page <= 1;
+  els.pageNext.disabled = state.page >= pages;
+
+  els.pageNumbers.innerHTML = pageItems(state.page, pages).map((p) => {
+    if (typeof p === 'string') return '<span class="lmwa-ellipsis">…</span>';
+
+    return `<button type="button" class="${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`;
+  }).join('');
+}
+
+function renderList() {
+  const rows = filtered();
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  if (state.page > pages) state.page = pages;
+
+  if (!total) {
+    els.listMeta.textContent = '0 phiếu được hiển thị';
+    els.list.innerHTML =
+      '<div class="lmwa-empty"><strong>Không tìm thấy dữ liệu phù hợp</strong><span>Thử thay đổi từ khóa hoặc bộ lọc.</span></div>';
+    els.pagination.hidden = true;
+    return;
+  }
+
+  const start = (state.page - 1) * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, total);
+  const pageRows = rows.slice(start, end);
+
+  els.listMeta.textContent = total > PAGE_SIZE
+    ? `Đang hiển thị ${start + 1}–${end} trong ${total.toLocaleString('vi-VN')} phiếu`
+    : `${total.toLocaleString('vi-VN')} phiếu được hiển thị`;
+
+  els.list.innerHTML = pageRows.map((item) => {
+    const activated = item.status === 'activated';
+
+    return `
+      <article class="lmwa-row">
+        <div class="lmwa-row-main">
+          <span class="lmwa-row-label">Số bảo hành</span>
+          <strong>${esc(item.warranty_number || '—')}</strong>
+          <small>${esc(item.product_name || item.sku || 'Chưa có tên sản phẩm')}</small>
+        </div>
+
+        <div>
+          <span class="lmwa-row-label">Khách hàng</span>
+          <strong>${esc(item.customer_name || '—')}</strong>
+          <small>${esc(item.customer_phone || item.customer_email || '—')}</small>
+        </div>
+
+        <div>
+          <span class="lmwa-row-label">SKU / Thương hiệu</span>
+          <strong>${esc(item.sku || '—')}</strong>
+          <small>${esc(item.brand || detectBrand(item.sku) || '—')} · ${esc(formatDate(item.purchase_date))}</small>
+        </div>
+
+        <div class="lmwa-row-status">
+          <span class="lmwa-row-label">Trạng thái</span>
+          <span class="lmwa-status ${activated ? 'activated' : 'pending'}">
+            ${activated ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+          </span>
+          <small>${esc(formatDateTime(item.created_at))}</small>
+        </div>
+
+        <div class="lmwa-row-actions">
+          <button type="button" class="edit" data-edit="${esc(item.warranty_number)}">CHỈNH SỬA</button>
+          <button type="button" class="delete" data-delete="${esc(item.warranty_number)}">XÓA</button>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  renderPagination(total, start, end);
+}
+
+function goPage(page) {
+  const pages = Math.max(1, Math.ceil(filtered().length / PAGE_SIZE));
+  state.page = Math.max(1, Math.min(Number(page) || 1, pages));
+  renderList();
+
+  const y = els.listMeta.getBoundingClientRect().top + window.scrollY - 100;
+  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+}
+
+let searchTimer = null;
+els.search.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.page = 1;
+    renderList();
+  }, 120);
+});
+
+els.filter.addEventListener('change', () => {
+  state.page = 1;
+  renderList();
+});
+
+els.refresh.addEventListener('click', loadWarranties);
+els.pagePrev.addEventListener('click', () => goPage(state.page - 1));
+els.pageNext.addEventListener('click', () => goPage(state.page + 1));
+els.pageNumbers.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-page]');
+  if (button) goPage(Number(button.dataset.page));
+});
+
+els.migrate.addEventListener('click', async () => {
+  if (!window.confirm('Đồng bộ dữ liệu bảo hành cũ sang index warranties? Dữ liệu index hiện có sẽ không bị ghi đè.')) return;
+
+  const original = els.migrate.textContent;
+  els.migrate.disabled = true;
+  els.migrate.textContent = 'ĐANG ĐỒNG BỘ';
+  hideMessage(els.migrationMessage);
+
+  try {
+    const data = await api('/admin/migrate', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    showMessage(
+      els.migrationMessage,
+      'success',
+      `Đồng bộ hoàn tất: tạo ${data.created || 0} index mới, bỏ qua ${data.skipped || 0} index đã tồn tại.`
+    );
+
+    await loadWarranties();
+  } catch (error) {
+    showMessage(els.migrationMessage, 'error', error.message);
+  } finally {
+    els.migrate.disabled = false;
+    els.migrate.textContent = original;
+  }
+});
+
+function findRecord(code) {
+  return state.warranties.find((x) => x.warranty_number === code) || null;
+}
+
+function openModal(modal) {
+  modal.hidden = false;
+  document.documentElement.classList.add('lmwa-modal-open');
+}
+
+function closeModal(modal) {
+  modal.hidden = true;
+  document.documentElement.classList.remove('lmwa-modal-open');
+}
+
+document.querySelectorAll('[data-close-edit]').forEach((x) =>
+  x.addEventListener('click', () => closeModal(els.editModal))
+);
+
+document.querySelectorAll('[data-close-delete]').forEach((x) =>
+  x.addEventListener('click', () => closeModal(els.deleteModal))
+);
+
+function openEdit(record) {
+  hideMessage(els.editMessage);
+
+  els.eOriginalCode.value = record.warranty_number || '';
+  els.eCode.value = record.warranty_number || '';
+  els.eSku.value = record.sku || '';
+  els.eProductName.value = record.product_name || '';
+  els.eName.value = record.customer_name || '';
+  els.ePhone.value = record.customer_phone || '';
+  els.eEmail.value = record.customer_email || '';
+  els.eDate.value = record.purchase_date || '';
+  els.eLocation.value = record.purchase_location || 'Khác';
+
+  els.eStatus.textContent = record.status === 'activated'
+    ? 'Đã kích hoạt'
+    : 'Chưa kích hoạt';
+
+  els.eStatus.className =
+    'lmwa-status ' + (record.status === 'activated' ? 'activated' : 'pending');
+
+  syncEditBrand();
+  openModal(els.editModal);
+}
+
+function openDelete(record) {
+  state.deleteTarget = record;
+  els.deleteCode.textContent = record.warranty_number || '';
+  els.deleteMessage.hidden = true;
+  openModal(els.deleteModal);
+}
+
+els.list.addEventListener('click', (event) => {
+  const edit = event.target.closest('[data-edit]');
+
+  if (edit) {
+    const record = findRecord(edit.dataset.edit);
+    if (record) openEdit(record);
+    return;
+  }
+
+  const del = event.target.closest('[data-delete]');
+
+  if (del) {
+    const record = findRecord(del.dataset.delete);
+    if (record) openDelete(record);
+  }
+});
+
+els.editForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  hideMessage(els.editMessage);
+
+  if (!syncEditBrand()) {
+    return showMessage(els.editMessage, 'error', 'SKU chưa nhận diện được thương hiệu.');
+  }
+
+  const original = els.saveEdit.textContent;
+  els.saveEdit.disabled = true;
+  els.saveEdit.textContent = 'ĐANG LƯU';
+
+  try {
+    await api('/admin/update', {
+      method: 'POST',
+      body: JSON.stringify({
+        originalCode: normalizeCode(els.eOriginalCode.value),
+        warrantyNumber: normalizeCode(els.eCode.value),
+        sku: normalizeSku(els.eSku.value),
+        productName: els.eProductName.value.trim(),
+        customerName: els.eName.value.trim(),
+        phone: normalizePhone(els.ePhone.value),
+        email: normalizeEmail(els.eEmail.value),
+        purchaseDate: els.eDate.value,
+        purchaseLocation: els.eLocation.value
+      })
+    });
+
+    closeModal(els.editModal);
+    await loadWarranties();
+  } catch (error) {
+    showMessage(els.editMessage, 'error', error.message);
+  } finally {
+    els.saveEdit.disabled = false;
+    els.saveEdit.textContent = original;
+  }
+});
+
+els.confirmDelete.addEventListener('click', async () => {
+  if (!state.deleteTarget) return;
+
+  const original = els.confirmDelete.textContent;
+  els.confirmDelete.disabled = true;
+  els.confirmDelete.textContent = 'ĐANG XÓA';
+  hideMessage(els.deleteMessage);
+
+  try {
+    await api('/admin/delete', {
+      method: 'POST',
+      body: JSON.stringify({
+        warrantyNumber: state.deleteTarget.warranty_number
+      })
+    });
+
+    state.deleteTarget = null;
+    closeModal(els.deleteModal);
+    await loadWarranties();
+  } catch (error) {
+    showMessage(els.deleteMessage, 'error', error.message);
+  } finally {
+    els.confirmDelete.disabled = false;
+    els.confirmDelete.textContent = original;
+  }
+});
+
+els.currentEmail.textContent = SHOPIFY_ADMIN.email || '—';
+setToday();
+syncCreateBrand();
+loadWarranties();
+
+</script>
+
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+<style>
+.lmwa{
+  --g:rgb(39 70 49);
+  --gh:rgb(31 58 40);
+  --gs:rgba(39,70,49,.055);
+  --gb:rgba(39,70,49,.17);
+  --text:#202520;
+  --muted:#747a75;
+  --line:#e2e5e2;
+  --line2:#eceeec;
+  --success:#2f6b43;
+  --success-bg:#eef7f0;
+  --success-border:#cfe3d4;
+  --danger:#934b47;
+  --danger-bg:#fff3f1;
+  --danger-border:#efd1cc;
+  color:var(--text)
+}
+.lmwa *,.lmwa *:before,.lmwa *:after{box-sizing:border-box}
+.lmwa-shell{
+  position:relative;
+  max-width:1240px;
+  margin:42px auto 72px;
+  padding:42px;
+  background:linear-gradient(180deg,#fff,#fdfefd);
+  border:1px solid rgba(31,36,32,.13);
+  border-radius:7px;
+  box-shadow:0 20px 65px rgba(24,31,26,.045)
+}
+.lmwa-shell:before{content:"";position:absolute;top:0;left:42px;right:42px;height:2px;background:var(--g)}
+.lmwa-kicker{color:var(--g);font-size:11px;font-weight:650;letter-spacing:.18em}
+.lmwa-auth-view{max-width:650px;margin:15px auto}
+.lmwa-auth-card{text-align:center;padding:38px 44px}
+.lmwa-auth-card h1{margin:13px 0 0;font-size:31px;font-weight:520;letter-spacing:.045em}
+.lmwa-auth-card>p{max-width:560px;margin:13px auto 28px;color:var(--muted);font-size:14px;line-height:1.7}
+.lmwa-auth-card .lmwa-field{text-align:left}
+.lmwa-auth-note{margin-top:20px;padding:16px 17px;background:#f7f9f7;border:1px solid var(--line2);border-radius:5px;text-align:left}
+.lmwa-auth-note strong,.lmwa-auth-note span{display:block}
+.lmwa-auth-note strong{font-size:12px}.lmwa-auth-note span{margin-top:5px;color:var(--muted);font-size:11px;line-height:1.55}
+.lmwa-top{display:flex;justify-content:space-between;align-items:flex-start;gap:30px;padding-bottom:31px;border-bottom:1px solid var(--line2)}
+.lmwa-top h1{margin:12px 0 0;font-size:clamp(27px,4vw,35px);font-weight:510;letter-spacing:.045em}
+.lmwa-top p{max-width:690px;margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.7}
+.lmwa-user{display:flex;align-items:center;gap:12px;padding:11px 12px 11px 15px;background:#fafbfa;border:1px solid var(--line2);border-radius:5px}
+.lmwa-user span,.lmwa-user strong{display:block}.lmwa-user span{color:var(--muted);font-size:9px}.lmwa-user strong{margin-top:3px;font-size:11px}
+.lmwa-user button{min-height:35px;padding:0 10px;border:1px solid #dfe2df;border-radius:4px;background:#fff;color:#5e655f;cursor:pointer;font:inherit;font-size:8px;font-weight:700;letter-spacing:.06em}
+.lmwa-secure{display:flex;align-items:center;gap:11px;margin-top:21px;padding:13px 15px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:5px}
+.lmwa-secure>span{padding:7px 9px;border:1px solid var(--success-border);border-radius:999px;background:#fff;color:var(--success);font-size:8px;font-weight:750;letter-spacing:.1em}
+.lmwa-secure strong,.lmwa-secure small{display:block}.lmwa-secure strong{font-size:12px}.lmwa-secure small{margin-top:3px;color:#5f7565;font-size:10px}
+.lmwa-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-top:26px}
+.lmwa-stat{position:relative;min-height:126px;padding:23px 24px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.025)}
+.lmwa-stat:before{content:"";position:absolute;top:0;left:18px;right:18px;height:2px;background:var(--g)}
+.lmwa-stat span,.lmwa-stat strong,.lmwa-stat small{display:block}.lmwa-stat span{font-size:13px;font-weight:600}.lmwa-stat strong{margin-top:10px;font-size:35px;font-weight:510}.lmwa-stat small{margin-top:10px;color:#858a86;font-size:11px}
+.lmwa-stat.pending{background:linear-gradient(180deg,#fff,var(--danger-bg) 145%);border-color:var(--danger-border)}.lmwa-stat.pending:before{background:var(--danger)}.lmwa-stat.pending strong{color:var(--danger)}
+.lmwa-stat.activated{background:linear-gradient(180deg,#fff,var(--success-bg) 145%);border-color:var(--success-border)}.lmwa-stat.activated:before{background:var(--success)}.lmwa-stat.activated strong{color:var(--success)}
+.lmwa-tabs{display:flex;gap:5px;margin-top:31px;padding:5px;background:#f7f8f7;border:1px solid var(--line2);border-radius:6px}
+.lmwa-tab{min-width:150px;padding:13px 20px;border:0;border-radius:4px;background:transparent;color:#737974;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.075em}.lmwa-tab.active{color:var(--g);background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.035)}
+.lmwa-panel{display:none;padding-top:36px}.lmwa-panel.active{display:block}
+.lmwa-section-header,.lmwa-list-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:27px}.lmwa-section-header h2,.lmwa-list-header h2{margin:8px 0 0;font-size:24px;font-weight:530}.lmwa-section-header>p{max-width:340px;margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+.lmwa-form-card{padding:29px;background:linear-gradient(180deg,#fcfdfc,#fafbfa);border:1px solid var(--line2);border-radius:6px}.lmwa-form-card+.lmwa-form-card{margin-top:15px}
+.lmwa-form-title{display:flex;gap:14px;margin-bottom:25px}.lmwa-form-title>span{color:var(--g);font-size:11px;font-weight:700;letter-spacing:.14em}.lmwa-form-title strong,.lmwa-form-title small{display:block}.lmwa-form-title strong{font-size:17px;font-weight:590}.lmwa-form-title small{margin-top:5px;color:var(--muted);font-size:12px}
+.lmwa-grid{display:grid;gap:20px}.lmwa-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.lmwa-field.full{grid-column:1/-1}
+.lmwa-field>span{display:block;margin-bottom:8px;font-size:13px;font-weight:600}.lmwa-field>small{display:block;margin-top:7px;color:#808681;font-size:11px;line-height:1.5}
+.lmwa-field input,.lmwa-field select,.lmwa-tools input,.lmwa-tools select{width:100%;height:54px;padding:0 15px;outline:none;background:#fff;border:1px solid #d5d9d5;border-radius:4px;color:var(--text);font:inherit;font-size:15px}.lmwa-field input:focus,.lmwa-field select:focus,.lmwa-tools input:focus,.lmwa-tools select:focus{border-color:rgba(39,70,49,.65);box-shadow:0 0 0 3px var(--gs)}
+.lmwa-field input.uppercase{text-transform:uppercase;font-weight:600;letter-spacing:.025em}.lmwa-field input.readonly{cursor:default;background:#f5f7f5}.brand-field.recognized input{color:var(--g)!important;background:#f1f8f3!important;border-color:var(--gb)!important;font-weight:650}.brand-field.unrecognized input{color:var(--danger)!important;background:var(--danger-bg)!important;border-color:var(--danger-border)!important}
+.lmwa-suffix{position:relative}.lmwa-suffix input{padding-right:67px}.lmwa-suffix>span{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
+.lmwa-code-field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.lmwa-code-field button{min-width:92px;border:1px solid var(--gb);border-radius:4px;background:#fff;color:var(--g);cursor:pointer;font:inherit;font-size:10px;font-weight:700}
+.lmwa-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:25px;padding-top:23px;border-top:1px solid var(--line2)}
+.lmwa-button{min-height:50px;padding:0 20px;border-radius:4px;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.07em}.lmwa-button.full{width:100%;margin-top:16px}.lmwa-button.primary{min-width:220px;color:#fff;background:var(--g);border:1px solid var(--g)}.lmwa-button.secondary{color:#525853;background:#fff;border:1px solid #d9ddd9}.lmwa-button.compact{min-height:42px;padding:0 14px;font-size:9px}.lmwa-button.danger{min-width:145px;color:#fff;background:var(--danger);border:1px solid var(--danger)}.lmwa-button:disabled{opacity:.58;cursor:wait}
+.lmwa-message{margin-top:16px;padding:13px 15px;border-radius:4px;font-size:12px;line-height:1.6}.lmwa-message.error{color:#754541;background:var(--danger-bg);border:1px solid var(--danger-border)}.lmwa-message.success{color:var(--success);background:var(--success-bg);border:1px solid var(--success-border)}.lmwa-message.neutral{color:#535954;background:#f7f8f7;border:1px solid var(--line)}
+.lmwa-created{position:relative;margin-top:21px;padding:28px;background:linear-gradient(180deg,#fff,var(--success-bg) 150%);border:1px solid var(--success-border);border-radius:6px}.lmwa-created:before{content:"";position:absolute;top:0;left:28px;right:28px;height:2px;background:var(--success)}.lmwa-created h3{margin:9px 0 0;color:var(--success);font-size:25px;font-weight:560}.lmwa-created>p{margin:8px 0 0;color:var(--muted);font-size:12px}
+.lmwa-created-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:20px;overflow:hidden;background:var(--success-border);border:1px solid var(--success-border);border-radius:4px}.lmwa-created-grid>div{padding:14px;background:#fff}.lmwa-created-grid span,.lmwa-created-grid strong,.lmwa-created-grid small{display:block}.lmwa-created-grid span{color:var(--muted);font-size:10px}.lmwa-created-grid strong{margin-top:5px;font-size:12px}.lmwa-created-grid small{margin-top:4px;color:var(--success);font-size:10px}
+.lmwa-header-actions{display:flex;gap:8px}.lmwa-tools{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:12px;padding:18px;background:#fafbfa;border:1px solid var(--line2);border-radius:6px}.lmwa-tools label>span{display:block;margin-bottom:7px;color:var(--muted);font-size:10px;font-weight:650}
+.lmwa-list-meta{margin:18px 0 11px;color:var(--muted);font-size:11px}.lmwa-list{display:grid;gap:10px}
+.lmwa-row{display:grid;grid-template-columns:1.25fr 1.08fr .9fr .82fr auto;gap:18px;align-items:center;padding:19px 18px;background:#fff;border:1px solid #e4e7e4;border-radius:6px;box-shadow:0 2px 9px rgba(0,0,0,.018)}.lmwa-row>div{min-width:0}.lmwa-row-label{display:block;margin-bottom:6px;color:#8c918d;font-size:9px;font-weight:650;letter-spacing:.055em}.lmwa-row strong,.lmwa-row small{display:block;overflow:hidden;text-overflow:ellipsis}.lmwa-row strong{font-size:12px;font-weight:620;white-space:nowrap}.lmwa-row-main>strong{color:var(--g);font-size:14px}.lmwa-row small{margin-top:6px;color:var(--muted);font-size:10px;white-space:nowrap}
+.lmwa-row-status{display:flex;flex-direction:column;align-items:flex-start}.lmwa-status{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 12px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.lmwa-status.activated{color:var(--success);background:var(--success-bg);border:1px solid var(--success-border)}.lmwa-status.pending{color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-border)}
+.lmwa-row-actions{display:flex;gap:6px}.lmwa-row-actions button{min-height:34px;padding:0 10px;border-radius:4px;background:#fff;cursor:pointer;font:inherit;font-size:8px;font-weight:750}.lmwa-row-actions .edit{color:var(--g);border:1px solid var(--gb)}.lmwa-row-actions .delete{color:var(--danger);border:1px solid var(--danger-border)}
+.lmwa-empty{padding:50px 20px;background:#fafbfa;border:1px dashed #dfe3df;border-radius:6px;text-align:center}.lmwa-empty strong,.lmwa-empty span{display:block}.lmwa-empty strong{font-size:15px}.lmwa-empty span{margin-top:7px;color:var(--muted);font-size:11px}
+.lmwa-pagination{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:17px 18px;background:#f8faf8;border:1px solid var(--line2);border-radius:6px;color:var(--muted);font-size:11px}.lmwa-pagination nav,.lmwa-page-numbers{display:flex;align-items:center;gap:5px}.lmwa-pagination button{height:37px;min-width:37px;padding:0 10px;border:1px solid #dce0dc;border-radius:4px;background:#fff;color:#555b56;cursor:pointer;font:inherit;font-size:10px;font-weight:650}.lmwa-pagination nav>button{min-width:68px;font-size:9px}.lmwa-pagination button.active{color:#fff;background:var(--g);border-color:var(--g)}.lmwa-ellipsis{width:24px;text-align:center}
+.lmwa-modal[hidden]{display:none}.lmwa-modal{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:24px}.lmwa-backdrop{position:absolute;inset:0;background:rgba(17,23,19,.49);backdrop-filter:blur(3px)}.lmwa-dialog{position:relative;z-index:1;width:min(760px,100%);max-height:calc(100vh - 48px);overflow:auto;padding:31px;background:#fff;border-radius:7px;box-shadow:0 34px 90px rgba(0,0,0,.2)}.lmwa-dialog.delete-dialog{width:min(520px,100%)}
+.lmwa-dialog-header{display:flex;justify-content:space-between;gap:20px;margin-bottom:25px;padding-bottom:21px;border-bottom:1px solid var(--line2)}.lmwa-dialog-header h2{margin:8px 0 0;font-size:23px;font-weight:540}.lmwa-dialog-header p{max-width:600px;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.6}.lmwa-close{min-height:36px;padding:0 12px;border:1px solid #dde0dd;border-radius:4px;background:#fff;color:#666c67;cursor:pointer;font:inherit;font-size:8px;font-weight:750}
+.lmwa-current-status{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding:13px 15px;background:#fafbfa;border:1px solid var(--line2);border-radius:5px}.lmwa-current-status>span{color:var(--muted);font-size:11px}.lmwa-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;padding-top:21px;border-top:1px solid var(--line2)}
+.lmwa-delete-code{padding:17px;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:5px}.lmwa-delete-code span,.lmwa-delete-code strong{display:block}.lmwa-delete-code span{color:#8b6c68;font-size:10px}.lmwa-delete-code strong{margin-top:6px;color:var(--danger);font-size:18px}.danger-text{color:var(--danger)}.lmwa-modal-open{overflow:hidden}
+@media(max-width:1050px){.lmwa-row{grid-template-columns:1.2fr 1fr .9fr .8fr}.lmwa-row-actions{grid-column:1/-1;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--line2)}}
+@media(max-width:900px){.lmwa-shell{margin:26px 15px 52px;padding:30px 27px}.lmwa-shell:before{left:27px;right:27px}.lmwa-top{flex-direction:column}.lmwa-user{max-width:100%}.lmwa-created-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){
+  .lmwa-shell{margin:14px 8px 38px;padding:27px 14px 31px;box-shadow:none}.lmwa-shell:before{left:14px;right:14px}.lmwa-auth-card{padding:22px 2px}.lmwa-auth-card h1{font-size:26px}
+  .lmwa-top h1{font-size:26px}.lmwa-user{width:100%;justify-content:space-between}.lmwa-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.lmwa-stat{min-height:112px;padding:16px}.lmwa-stat.total{grid-column:1/-1;min-height:102px}.lmwa-stat strong{font-size:28px}
+  .lmwa-tab{flex:1;min-width:0;padding:13px 9px;font-size:10px}.lmwa-section-header,.lmwa-list-header{align-items:stretch;flex-direction:column;gap:12px}.lmwa-section-header h2,.lmwa-list-header h2{font-size:21px}.lmwa-header-actions{display:grid;grid-template-columns:1fr 1fr}
+  .lmwa-form-card{padding:22px 14px}.lmwa-grid.two{grid-template-columns:1fr}.lmwa-field.full{grid-column:auto}.lmwa-field input,.lmwa-field select,.lmwa-tools input,.lmwa-tools select{font-size:16px}.lmwa-code-field{grid-template-columns:1fr}.lmwa-code-field button{min-height:43px}
+  .lmwa-actions{flex-direction:column-reverse}.lmwa-actions .lmwa-button{width:100%}.lmwa-created-grid{grid-template-columns:1fr}.lmwa-tools{grid-template-columns:1fr;padding:14px}.lmwa-row{grid-template-columns:1fr 1fr;padding:17px 15px}.lmwa-row-main{grid-column:1/-1;padding-bottom:12px;border-bottom:1px solid var(--line2)}.lmwa-row-actions{display:grid;grid-template-columns:1fr 1fr;grid-column:1/-1;width:100%}.lmwa-row-actions button{min-height:40px}.lmwa-row strong,.lmwa-row small{white-space:normal;word-break:break-word}
+  .lmwa-pagination{flex-direction:column;align-items:stretch;gap:12px;padding:14px}.lmwa-pagination>div{text-align:center}.lmwa-pagination nav{justify-content:center}.lmwa-page-numbers{max-width:calc(100vw - 180px);overflow-x:auto}
+  .lmwa-modal{align-items:flex-end;padding:0}.lmwa-dialog{width:100%;max-height:92vh;padding:24px 16px 21px;border-radius:10px 10px 0 0}.lmwa-dialog-header h2{font-size:21px}.lmwa-dialog-actions{position:sticky;bottom:-21px;margin-left:-16px;margin-right:-16px;padding:14px 16px 17px;background:rgba(255,255,255,.97)}
+}
+@media(max-width:430px){.lmwa-row{grid-template-columns:1fr}.lmwa-row-main{grid-column:auto}.lmwa-row-actions{grid-column:auto}.lmwa-dialog-actions{flex-direction:column-reverse}.lmwa-dialog-actions .lmwa-button{width:100%}}
+</style>
+<style>
+.lmwa .lmwa-shopify-auth{
+  margin-top:22px;
+  padding:25px;
+  background:#fafbfa;
+  border:1px solid rgba(39,70,49,.16);
+  border-radius:5px;
+  text-align:center;
+}
+.lmwa .lmwa-shopify-auth h2{
+  margin:9px 0 0;
+  font-size:21px;
+  font-weight:540;
+}
+.lmwa .lmwa-shopify-auth p{
+  margin:9px auto 0;
+  max-width:510px;
+  color:#747a75;
+  font-size:12px;
+  line-height:1.65;
+}
+#lmwa-admin-account{
+  display:block;
+  width:100%;
+  margin-top:18px;
+  --shopify-account-color-accent:rgb(39 70 49);
+  --shopify-account-radius-base:4px;
+}
+</style>
