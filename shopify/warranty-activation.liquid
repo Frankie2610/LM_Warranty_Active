@@ -252,6 +252,12 @@
     return div.innerHTML;
   };
 
+  const formatDateOnly=(value)=>{
+    const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||'').trim());
+    if(!match) return '';
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  };
+
   function show(type,text){
     message.hidden=false;
     message.className='lmwa-c-message '+type;
@@ -351,6 +357,8 @@
         ?new Date(data.activatedAt).toLocaleDateString('vi-VN')
         :'';
 
+      const warrantyExpiryDate=formatDateOnly(data.warrantyExpiresOn);
+
       result.innerHTML=`
         <div class="lmwa-c-kicker">
           ${alreadyActivated?'BẢO HÀNH ĐÃ CÓ HIỆU LỰC':'KÍCH HOẠT HOÀN TẤT'}
@@ -387,6 +395,11 @@
           <div>
             <span>Email khách hàng</span>
             <strong>${esc(customerData.email||'—')}</strong>
+          </div>
+
+          <div>
+            <span>Hết hạn bảo hành</span>
+            <strong>${esc(warrantyExpiryDate||'—')}</strong>
           </div>
 
           ${alreadyActivated&&activatedDate?`
@@ -900,5 +913,108 @@
     font-size:16px;
   }
   .lmwa-result-grid{grid-template-columns:1fr}
+}
+</style>
+
+
+<style>
+/* V9.1 — CUSTOMER DESKTOP TYPOGRAPHY +2PX */
+@media (min-width: 761px){
+  .lmwa-customer .lmwa-c-kicker,
+  .lmwa-customer .lmwa-c-main-kicker{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-c-side h1{
+    font-size:clamp(36px,5vw,52px)!important;
+  }
+
+  .lmwa-customer .lmwa-c-side-copy>p{
+    font-size:14px!important;
+  }
+
+  .lmwa-customer .lmwa-c-verified-account span{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-c-verified-account strong{
+    font-size:13px!important;
+  }
+
+  .lmwa-customer .lmwa-c-progress span{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-c-progress strong{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-c-main-head>span{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-c-main-head h2,
+  .lmwa-customer .lmwa-shopify-auth h2{
+    font-size:29px!important;
+  }
+
+  .lmwa-customer .lmwa-c-main-head p,
+  .lmwa-customer .lmwa-shopify-auth p{
+    font-size:13px!important;
+  }
+
+  .lmwa-customer #customer-form label>span{
+    font-size:12px!important;
+  }
+
+  .lmwa-customer #customer-form label>small{
+    font-size:11px!important;
+  }
+
+  .lmwa-customer #customer-form input,
+  .lmwa-customer #customer-form select{
+    font-size:15px!important;
+  }
+
+  .lmwa-customer .lmwa-c-match-note strong{
+    font-size:11px!important;
+  }
+
+  .lmwa-customer .lmwa-c-match-note span{
+    font-size:12px!important;
+  }
+
+  .lmwa-customer #a-submit,
+  .lmwa-customer .lmwa-shopify-login-button{
+    font-size:11px!important;
+  }
+
+  .lmwa-customer .lmwa-c-message{
+    font-size:12px!important;
+  }
+
+  .lmwa-customer .lmwa-c-result h2{
+    font-size:22px!important;
+  }
+
+  .lmwa-customer .lmwa-c-result>p{
+    font-size:12px!important;
+  }
+
+  .lmwa-customer .lmwa-result-grid span{
+    font-size:10px!important;
+  }
+
+  .lmwa-customer .lmwa-result-grid strong{
+    font-size:13px!important;
+  }
+
+  .lmwa-customer .lmwa-c-login-note strong{
+    font-size:12px!important;
+  }
+
+  .lmwa-customer .lmwa-c-login-note small{
+    font-size:11px!important;
+  }
 }
 </style>

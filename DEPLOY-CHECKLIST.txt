@@ -1,0 +1,47 @@
+L&M WARRANTY V8.3 — DEPLOY CHECKLIST
+
+FIREBASE
+[ ] Firebase Authentication is NOT required.
+[ ] Generate Firebase Admin SDK service-account JSON.
+[ ] Keep JSON/private key OUT of GitHub.
+
+ADMIN KEY
+[ ] Generate random 64-char hex key: openssl rand -hex 32
+[ ] Vercel env WARRANTY_ADMIN_ACCESS_KEY = that key.
+[ ] Shopify Admin customer tag: warranty-admin
+[ ] Shopify Admin customer tag: warranty-admin-key-THAT_SAME_KEY
+
+VERCEL
+[ ] Push api/, lib/, package.json, vercel.json, .gitignore to GitHub.
+[ ] Add env:
+    ALLOWED_ORIGINS
+    WARRANTY_ADMIN_ACCESS_KEY
+    FIREBASE_PROJECT_ID
+    FIREBASE_DATABASE_URL
+    FIREBASE_CLIENT_EMAIL
+    FIREBASE_PRIVATE_KEY
+[ ] Deploy.
+[ ] Test /api/warranty health.
+
+SHOPIFY ADMIN PAGE
+[ ] Replace API_BASE in page.warranty-admin.liquid.
+[ ] Paste into templates/page.warranty-admin.liquid.
+[ ] Logged out → Shopify account/passwordless login UI.
+[ ] Logged in without warranty-admin → denied.
+[ ] Logged in with warranty-admin + correct key tag → Admin opens.
+[ ] Test create/list/edit/delete/generate-code/product/migrate.
+
+CUSTOMER PAGE
+[ ] Replace API_BASE in warranty-activation.liquid.
+[ ] Paste into customer activation page.
+[ ] Logged out → Shopify account/passwordless login UI.
+[ ] Logged in → Brand + Phone + Purchase Date.
+[ ] Email comes from Shopify customer Liquid.
+[ ] Unique 4-factor pending match activates warranty.
+
+RULES
+[ ] Only after testing all Vercel routes, lock RTDB browser read/write.
+
+[ ] V8.3: confirm lib/firebase.js has NO firebase-admin/auth import.
+[ ] Push package.json + lib/firebase.js together.
+[ ] Redeploy Vercel after the GitHub commit.

@@ -1,13 +1,12 @@
 {% comment %}
-  L&M WARRANTY ADMIN — V8.9 FRESH UI
+  L&M WARRANTY ADMIN — V9.0 REACT UI
   Shopify Customer Account / OTP + customer tag authorization.
-  Production API endpoint is configured below.
+  React renders the entire authenticated Admin interface.
 {% endcomment %}
 
 <script>
 (function(){
   var src='https://cdn.shopify.com/storefront/web-components.js';
-
   if(
     !customElements.get('shopify-account') &&
     !document.querySelector('script[src="'+src+'"]')
@@ -31,16 +30,12 @@
   {% endfor %}
 {% endif %}
 
-<section class="lmwa">
-  <div class="lmwa-shell">
-
+<section class="lmreact-shell">
   {% if customer %}
-
     {% if customer.tags contains warranty_admin_tag %}
-
       {% if warranty_admin_key != blank %}
 
-        <script id="lmwa-shopify-admin-data" type="application/json">
+        <script id="lmreact-admin-data" type="application/json">
           {
             "id": {{ customer.id | json }},
             "email": {{ customer.email | json }},
@@ -50,1899 +45,1747 @@
           }
         </script>
 
-<section id="lmwa-admin">
-      <header class="lmwa-top">
-        <div>
-                    <h1>QUẢN LÝ BẢO HÀNH</h1>
-          <p>Quản lý toàn bộ vòng đời bảo hành từ khởi tạo, tra cứu đến kích hoạt và cập nhật thông tin trong một không gian vận hành tập trung.</p>
+        <div id="lmreact-root">
+          <div class="lmreact-boot">Đang khởi tạo khu vực quản lý bảo hành...</div>
         </div>
-<div class="lmwa-user">
-          <div>
-            <span>ĐANG ĐĂNG NHẬP</span>
-            <strong id="lmwa-current-email">—</strong>
-          </div>
-          <shopify-account menu="customer-account-main-menu"></shopify-account>
-        </div>
-      </header>
-<section class="lmwa-stats">
-        <article class="lmwa-stat total">
-          <span>Tổng phiếu</span>
-          <strong id="stat-total">0</strong>
-          <small>Tổng hồ sơ</small>
-        </article>
-        <article class="lmwa-stat pending">
-          <span>Chưa kích hoạt</span>
-          <strong id="stat-pending">0</strong>
-          <small>Chờ kích hoạt</small>
-        </article>
-        <article class="lmwa-stat activated">
-          <span>Đã kích hoạt</span>
-          <strong id="stat-activated">0</strong>
-          <small>Đã kích hoạt</small>
-        </article>
-      </section>
 
-      <nav class="lmwa-tabs">
-        <button type="button" class="lmwa-tab active" data-tab="create">TẠO PHIẾU</button>
-        <button type="button" class="lmwa-tab" data-tab="list">DANH SÁCH</button>
-      </nav>
+        <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+        <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
 
-      <section class="lmwa-panel active" data-panel="create">
-        <header class="lmwa-section-header">
-          <div>
-            <div class="lmwa-kicker">PHIẾU BẢO HÀNH MỚI</div>
-            <h2>Tạo hồ sơ bảo hành mới</h2>
-          </div>
-          <p>Tạo mới hồ sơ bảo hành và thông tin giao dịch liên quan.</p>
-        </header>
+        <script>
+        (function(){
+          const { useEffect, useMemo, useRef, useState } = React;
+          const html = htm.bind(React.createElement);
 
-        <form id="create-form" novalidate>
-          <div class="lmwa-form-card">
-            <div class="lmwa-form-title">
-              <span>01</span>
-              <div>
-                <strong>Thông tin khách hàng</strong>
-                <small>Thông tin khách hàng dùng để đối chiếu khi kích hoạt bảo hành online.</small>
+          const adminNode = document.getElementById('lmreact-admin-data');
+          const ADMIN = JSON.parse(adminNode?.textContent || '{}');
+          const ADMIN_ACCESS_KEY = String(ADMIN.adminAccessKey || '');
+          const API_BASE = 'https://lm-warranty-active.vercel.app/api/warranty';
+          const PAGE_SIZE = 50;
+
+          if (!ADMIN_ACCESS_KEY || ADMIN_ACCESS_KEY.length < 32) {
+            document.getElementById('lmreact-root').innerHTML =
+              '<div class="lmreact-auth-error"><strong>Không thể mở khu vực quản trị</strong><span>Thông tin quyền truy cập chưa hợp lệ.</span></div>';
+            return;
+          }
+
+          const BRAND_RULES = [
+            ['GUESS', /^GW0/],
+            ['TED BAKER', /^BKP/],
+            ['PHILIPP PLEIN', /^PW/],
+            ['ADIDAS', /^AO/],
+            ['FURLA', /^WW/],
+            ['LOCMAN ITALY', /^(?:D\d{3}[A-Z]|0\d{3}[A-Z])/],
+            ['VERSUS BY VERSACE', /^VSP/],
+            ['MISSONI', /^MWY/]
+          ];
+
+          const LOCATION_OPTIONS = ['Showroom L&M', 'Online', 'Đại lý', 'Khác'];
+
+          const normalizeSku = (v) => String(v || '').trim().toUpperCase();
+          const normalizeCode = (v) => String(v || '').trim().toUpperCase().replace(/\s+/g, '');
+          const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
+          const normalizePhone = (v) => String(v || '').replace(/[^\d+]/g, '').trim();
+
+          function detectBrand(v) {
+            const sku = normalizeSku(v);
+            const match = BRAND_RULES.find(([, re]) => re.test(sku));
+            return match ? match[0] : '';
+          }
+
+          function today() {
+            const d = new Date();
+            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 10);
+          }
+
+          function formatDate(v) {
+            if (!v) return '—';
+            const d = new Date(v + 'T00:00:00');
+            return Number.isNaN(d.getTime())
+              ? v
+              : d.toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric'});
+          }
+
+          function formatDateTime(v) {
+            if (!v) return '';
+            const d = new Date(v);
+            return Number.isNaN(d.getTime())
+              ? ''
+              : d.toLocaleString('vi-VN', {
+                  day:'2-digit', month:'2-digit', year:'numeric',
+                  hour:'2-digit', minute:'2-digit'
+                });
+          }
+
+          async function api(path, options = {}) {
+            const response = await fetch(API_BASE + path, {
+              cache: 'no-store',
+              ...options,
+              headers: {
+                Accept: 'application/json',
+                ...(options.body ? {'Content-Type':'application/json'} : {}),
+                ...(options.headers || {}),
+                'X-Warranty-Admin-Key': ADMIN_ACCESS_KEY,
+                'X-Shopify-Customer-Email': ADMIN.email || ''
+              }
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'Yêu cầu không thành công.');
+            return payload;
+          }
+
+          const initialCreate = () => ({
+            customerName: '',
+            phone: '',
+            email: '',
+            sku: '',
+            productName: '',
+            purchaseDate: today(),
+            purchaseLocation: 'Showroom L&M',
+            warrantyNumber: ''
+          });
+
+          function Message({message}) {
+            if (!message?.text) return null;
+            return html`<div className=${'lmreact-message ' + (message.type || 'info')}>${message.text}</div>`;
+          }
+
+          function Button({children, variant='secondary', className='', ...props}) {
+            return html`
+              <button
+                className=${`lmreact-btn ${variant} ${className}`}
+                type="button"
+                ...${props}
+              >${children}</button>
+            `;
+          }
+
+          function Field({label, help, full=false, children}) {
+            return html`
+              <label className=${'lmreact-field' + (full ? ' full' : '')}>
+                <span className="lmreact-label">${label}</span>
+                ${children}
+                ${help ? html`<small>${help}</small>` : null}
+              </label>
+            `;
+          }
+
+          function Input(props) {
+            return html`<input className="lmreact-input" ...${props} />`;
+          }
+
+          function Select({children, ...props}) {
+            return html`<select className="lmreact-select" ...${props}>${children}</select>`;
+          }
+
+          function StatusPill({status}) {
+            const active = status === 'activated';
+            return html`
+              <span className=${'lmreact-status ' + (active ? 'activated' : 'pending')}>
+                ${active ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+              </span>
+            `;
+          }
+
+          function Stat({label, value, caption, tone='light'}) {
+            return html`
+              <article className=${'lmreact-stat ' + tone}>
+                <span>${label}</span>
+                <strong>${Number(value || 0).toLocaleString('vi-VN')}</strong>
+                <small>${caption}</small>
+              </article>
+            `;
+          }
+
+          function Modal({open, title, kicker, onClose, children, footer}) {
+            if (!open) return null;
+            return html`
+              <div className="lmreact-modal" role="dialog" aria-modal="true">
+                <div className="lmreact-modal-backdrop" onClick=${onClose}></div>
+                <section className="lmreact-modal-card">
+                  <header className="lmreact-modal-head">
+                    <div>
+                      <span>${kicker}</span>
+                      <h2>${title}</h2>
+                    </div>
+                    <${Button} onClick=${onClose}>ĐÓNG</${Button}>
+                  </header>
+                  <div className="lmreact-modal-body">${children}</div>
+                  ${footer ? html`<footer className="lmreact-modal-foot">${footer}</footer>` : null}
+                </section>
               </div>
-            </div>
+            `;
+          }
 
-            <div class="lmwa-grid two">
-              <label class="lmwa-field">
-                <span>Họ và tên *</span>
-                <input id="c-name" autocomplete="name" required>
-              </label>
+          function CreatePanel({onCreated}) {
+            const [form, setForm] = useState(initialCreate);
+            const [message, setMessage] = useState(null);
+            const [result, setResult] = useState(null);
+            const [saving, setSaving] = useState(false);
+            const [generating, setGenerating] = useState(false);
+            const [lookupLoading, setLookupLoading] = useState(false);
 
-              <label class="lmwa-field">
-                <span>Số điện thoại *</span>
-                <input id="c-phone" type="tel" inputmode="tel" autocomplete="tel" required>
-              </label>
+            const brand = useMemo(() => detectBrand(form.sku), [form.sku]);
 
-              <label class="lmwa-field full">
-                <span>Email *</span>
-                <input id="c-email" type="email" autocomplete="email" required>
-                <small>Email này phải trùng email khách xác thực khi kích hoạt.</small>
-              </label>
-            </div>
-          </div>
+            function patch(key, value) {
+              setForm((prev) => ({...prev, [key]: value}));
+            }
 
-          <div class="lmwa-form-card">
-            <div class="lmwa-form-title">
-              <span>02</span>
-              <div>
-                <strong>Thông tin sản phẩm</strong>
-                <small>Hệ thống tự chuẩn hóa SKU, nhận diện thương hiệu và áp dụng thời hạn 24 tháng.</small>
-              </div>
-            </div>
+            async function lookupProduct() {
+              const sku = normalizeSku(form.sku);
+              if (!sku || form.productName.trim()) return;
+              setLookupLoading(true);
+              try {
+                const data = await api('/admin/product?sku=' + encodeURIComponent(sku));
+                if (data.productName) patch('productName', data.productName);
+              } catch (e) {
+                console.warn('Product lookup:', e);
+              } finally {
+                setLookupLoading(false);
+              }
+            }
 
-            <div class="lmwa-grid two">
-              <label class="lmwa-field">
-                <span>SKU sản phẩm *</span>
-                <input id="c-sku" class="uppercase" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="Ví dụ: AOFH22514" required>
-                <small>Hệ thống tự chuyển SKU sang chữ IN HOA.</small>
-              </label>
+            async function generateCode() {
+              setGenerating(true);
+              setMessage(null);
+              try {
+                const data = await api('/admin/generate-code');
+                patch('warrantyNumber', data.warrantyNumber || '');
+              } catch (e) {
+                setMessage({type:'error', text:e.message});
+              } finally {
+                setGenerating(false);
+              }
+            }
 
-              <label class="lmwa-field brand-field" id="c-brand-field">
-                <span>Thương hiệu</span>
-                <input id="c-brand" class="readonly" readonly tabindex="-1" placeholder="Tự nhận diện từ SKU">
-                <small id="c-brand-note">Tự nhận diện theo cấu trúc SKU.</small>
-              </label>
+            async function submit(e) {
+              e.preventDefault();
+              setMessage(null);
+              setResult(null);
 
-              <label class="lmwa-field full">
-                <span>Tên sản phẩm</span>
-                <input id="c-product-name" autocomplete="off">
-              </label>
+              if (!brand) {
+                setMessage({type:'error', text:'SKU chưa nhận diện được thương hiệu.'});
+                return;
+              }
 
-              <label class="lmwa-field">
-                <span>Ngày mua *</span>
-                <input id="c-date" type="date" required>
-              </label>
+              if (!form.customerName.trim() || !form.phone.trim() || !form.email.trim() ||
+                  !form.sku.trim() || !form.purchaseDate || !form.warrantyNumber.trim()) {
+                setMessage({type:'error', text:'Vui lòng hoàn tất các trường bắt buộc.'});
+                return;
+              }
 
-              <label class="lmwa-field">
-                <span>Thời hạn bảo hành</span>
-                <span class="lmwa-suffix">
-                  <input class="readonly" value="24" readonly tabindex="-1>
-                  <span>tháng</span>
-                </span>
-              </label>
+              setSaving(true);
+              try {
+                const data = await api('/admin/create', {
+                  method:'POST',
+                  body: JSON.stringify({
+                    customerName: form.customerName.trim(),
+                    phone: normalizePhone(form.phone),
+                    email: normalizeEmail(form.email),
+                    sku: normalizeSku(form.sku),
+                    productName: form.productName.trim(),
+                    purchaseDate: form.purchaseDate,
+                    purchaseLocation: form.purchaseLocation,
+                    warrantyNumber: normalizeCode(form.warrantyNumber)
+                  })
+                });
 
-              <div class="lmwa-field lmwa-select-field">
-                <label for="c-location" class="lmwa-field-label">Nơi mua</label>
-                <select id="c-location">
-                  <option value="Showroom L&M">Showroom L&amp;M</option>
-                  <option value="Online">Online</option>
-                  <option value="Đại lý">Đại lý</option>
-                  <option value="Khác">Khác</option>
-                </select>
-              </div>
+                setResult(data.warranty || null);
+                setForm(initialCreate());
+                await onCreated();
+              } catch (e) {
+                setMessage({type:'error', text:e.message});
+              } finally {
+                setSaving(false);
+              }
+            }
 
-              <div class="lmwa-field">
-                <span>Số bảo hành *</span>
-                <div class="lmwa-code-field">
-                  <input id="c-code" autocomplete="off" spellcheck="false" required>
-                  <button type="button" id="generate-code">TỰ SINH</button>
+            return html`
+              <section className="lmreact-panel">
+                <header className="lmreact-panel-head">
+                  <div>
+                    <span className="lmreact-eyebrow">TẠO PHIẾU</span>
+                    <h2>Thêm bảo hành mới</h2>
+                    <p>Nhập thông tin khách hàng và sản phẩm để tạo hồ sơ bảo hành.</p>
+                  </div>
+                </header>
+
+                <form className="lmreact-form" onSubmit=${submit}>
+                  <section className="lmreact-form-section">
+                    <div className="lmreact-section-title">
+                      <span>01</span>
+                      <div>
+                        <strong>Thông tin khách hàng</strong>
+                        <small>Dùng để đối chiếu khi khách kích hoạt bảo hành online.</small>
+                      </div>
+                    </div>
+
+                    <div className="lmreact-grid two">
+                      <${Field} label="Họ và tên *">
+                        <${Input}
+                          autoComplete="name"
+                          value=${form.customerName}
+                          onChange=${e => patch('customerName', e.target.value)}
+                        />
+                      </${Field}>
+
+                      <${Field} label="Số điện thoại *">
+                        <${Input}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value=${form.phone}
+                          onChange=${e => patch('phone', e.target.value)}
+                        />
+                      </${Field}>
+
+                      <${Field}
+                        label="Email *"
+                        full=${true}
+                        help="Email phải trùng với email khách dùng khi kích hoạt."
+                      >
+                        <${Input}
+                          type="email"
+                          autoComplete="email"
+                          value=${form.email}
+                          onChange=${e => patch('email', e.target.value)}
+                        />
+                      </${Field}>
+                    </div>
+                  </section>
+
+                  <section className="lmreact-form-section">
+                    <div className="lmreact-section-title">
+                      <span>02</span>
+                      <div>
+                        <strong>Thông tin sản phẩm</strong>
+                        <small>SKU được chuẩn hóa tự động và áp dụng thời hạn 24 tháng.</small>
+                      </div>
+                    </div>
+
+                    <div className="lmreact-grid two">
+                      <${Field}
+                        label="SKU sản phẩm *"
+                        help=${brand
+                          ? `Đã nhận diện ${brand}.`
+                          : form.sku
+                            ? 'SKU chưa khớp thương hiệu đang cấu hình.'
+                            : 'Nhập SKU để nhận diện thương hiệu.'}
+                      >
+                        <${Input}
+                          value=${form.sku}
+                          placeholder="Ví dụ: AOFH22514"
+                          onChange=${e => patch('sku', normalizeSku(e.target.value))}
+                          onBlur=${lookupProduct}
+                          spellCheck=${false}
+                        />
+                      </${Field}>
+
+                      <${Field} label="Thương hiệu">
+                        <${Input}
+                          value=${form.sku ? (brand || 'CHƯA NHẬN DIỆN') : ''}
+                          readOnly=${true}
+                          className=${'lmreact-input readonly ' + (brand ? 'recognized' : '')}
+                        />
+                      </${Field}>
+
+                      <${Field} label="Tên sản phẩm" full=${true} help=${lookupLoading ? 'Đang tra cứu tên sản phẩm...' : ''}>
+                        <${Input}
+                          value=${form.productName}
+                          onChange=${e => patch('productName', e.target.value)}
+                        />
+                      </${Field}>
+
+                      <${Field} label="Ngày mua *">
+                        <${Input}
+                          type="date"
+                          value=${form.purchaseDate}
+                          onChange=${e => patch('purchaseDate', e.target.value)}
+                        />
+                      </${Field}>
+
+                      <${Field} label="Thời hạn bảo hành">
+                        <div className="lmreact-inline">
+                          <${Input} value="24" readOnly=${true} className="lmreact-input readonly"/>
+                          <span className="lmreact-addon">THÁNG</span>
+                        </div>
+                      </${Field}>
+
+                      <${Field} label="Nơi mua">
+                        <${Select}
+                          value=${form.purchaseLocation}
+                          onChange=${e => patch('purchaseLocation', e.target.value)}
+                        >
+                          ${LOCATION_OPTIONS.map(x => html`<option key=${x} value=${x}>${x}</option>`)}
+                        </${Select}>
+                      </${Field}>
+
+                      <${Field} label="Số bảo hành *">
+                        <div className="lmreact-inline code">
+                          <${Input}
+                            value=${form.warrantyNumber}
+                            onChange=${e => patch('warrantyNumber', normalizeCode(e.target.value))}
+                            spellCheck=${false}
+                          />
+                          <${Button}
+                            className="code-btn"
+                            variant="dark"
+                            disabled=${generating}
+                            onClick=${generateCode}
+                          >${generating ? 'ĐANG TẠO' : 'TỰ SINH'}</${Button}>
+                        </div>
+                      </${Field}>
+                    </div>
+                  </section>
+
+                  <${Message} message=${message}/>
+
+                  <div className="lmreact-form-actions">
+                    <${Button}
+                      onClick=${() => {
+                        setForm(initialCreate());
+                        setMessage(null);
+                        setResult(null);
+                      }}
+                    >LÀM MỚI</${Button}>
+                    <${Button} type="submit" variant="dark" disabled=${saving}>
+                      ${saving ? 'ĐANG LƯU' : 'TẠO PHIẾU BẢO HÀNH'}
+                    </${Button}>
+                  </div>
+                </form>
+
+                ${result ? html`
+                  <section className="lmreact-created">
+                    <span>PHIẾU ĐÃ TẠO</span>
+                    <h3>${result.warranty_number}</h3>
+                    <p>Hồ sơ đang chờ khách hàng kích hoạt.</p>
+                    <div>
+                      <article><small>Khách hàng</small><strong>${result.customer_name || '—'}</strong></article>
+                      <article><small>SKU</small><strong>${result.sku || '—'}</strong><em>${result.brand || '—'}</em></article>
+                      <article><small>Ngày mua</small><strong>${formatDate(result.purchase_date)}</strong></article>
+                      <article><small>Thời hạn</small><strong>24 tháng</strong></article>
+                    </div>
+                  </section>
+                ` : null}
+              </section>
+            `;
+          }
+
+          function ListPanel({warranties, loading, error, reload}) {
+            const [search, setSearch] = useState('');
+            const [filter, setFilter] = useState('all');
+            const [page, setPage] = useState(1);
+            const [migrationMessage, setMigrationMessage] = useState(null);
+            const [migrating, setMigrating] = useState(false);
+            const [editRecord, setEditRecord] = useState(null);
+            const [deleteRecord, setDeleteRecord] = useState(null);
+            const [modalMessage, setModalMessage] = useState(null);
+            const [savingEdit, setSavingEdit] = useState(false);
+            const [deleting, setDeleting] = useState(false);
+
+            useEffect(() => setPage(1), [search, filter]);
+
+            const rows = useMemo(() => {
+              const q = search.trim().toLowerCase();
+              return warranties.filter(item => {
+                const statusOk =
+                  filter === 'all' ||
+                  (filter === 'activated' && item.status === 'activated') ||
+                  (filter === 'pending' && item.status !== 'activated');
+                if (!statusOk) return false;
+                if (!q) return true;
+
+                return [
+                  item.warranty_number, item.customer_name, item.customer_phone,
+                  item.customer_email, item.sku, item.brand, item.product_name
+                ].join(' ').toLowerCase().includes(q);
+              });
+            }, [warranties, search, filter]);
+
+            const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+            const safePage = Math.min(page, pages);
+            const start = (safePage - 1) * PAGE_SIZE;
+            const visible = rows.slice(start, start + PAGE_SIZE);
+
+            async function migrate() {
+              if (!window.confirm('Đồng bộ dữ liệu bảo hành cũ sang danh sách hiện tại?')) return;
+              setMigrating(true);
+              setMigrationMessage(null);
+              try {
+                const data = await api('/admin/migrate', {
+                  method:'POST',
+                  body:JSON.stringify({})
+                });
+                setMigrationMessage({
+                  type:'success',
+                  text:`Đồng bộ hoàn tất: tạo ${data.created || 0} index mới, bỏ qua ${data.skipped || 0} index đã tồn tại.`
+                });
+                await reload();
+              } catch (e) {
+                setMigrationMessage({type:'error', text:e.message});
+              } finally {
+                setMigrating(false);
+              }
+            }
+
+            async function saveEdit(form) {
+              setSavingEdit(true);
+              setModalMessage(null);
+              try {
+                await api('/admin/update', {
+                  method:'POST',
+                  body:JSON.stringify({
+                    originalCode: normalizeCode(editRecord.warranty_number),
+                    warrantyNumber: normalizeCode(form.warrantyNumber),
+                    sku: normalizeSku(form.sku),
+                    productName: form.productName.trim(),
+                    customerName: form.customerName.trim(),
+                    phone: normalizePhone(form.phone),
+                    email: normalizeEmail(form.email),
+                    purchaseDate: form.purchaseDate,
+                    purchaseLocation: form.purchaseLocation
+                  })
+                });
+                setEditRecord(null);
+                await reload();
+              } catch (e) {
+                setModalMessage({type:'error', text:e.message});
+              } finally {
+                setSavingEdit(false);
+              }
+            }
+
+            async function confirmDelete() {
+              if (!deleteRecord) return;
+              setDeleting(true);
+              setModalMessage(null);
+              try {
+                await api('/admin/delete', {
+                  method:'POST',
+                  body:JSON.stringify({warrantyNumber:deleteRecord.warranty_number})
+                });
+                setDeleteRecord(null);
+                await reload();
+              } catch (e) {
+                setModalMessage({type:'error', text:e.message});
+              } finally {
+                setDeleting(false);
+              }
+            }
+
+            return html`
+              <section className="lmreact-panel">
+                <header className="lmreact-panel-head list-head">
+                  <div>
+                    <span className="lmreact-eyebrow">DANH SÁCH</span>
+                    <h2>Hồ sơ bảo hành</h2>
+                    <p>Tra cứu, chỉnh sửa và quản lý trạng thái của toàn bộ phiếu bảo hành.</p>
+                  </div>
+                  <div className="lmreact-head-actions">
+                    <${Button} disabled=${migrating} onClick=${migrate}>
+                      ${migrating ? 'ĐANG ĐỒNG BỘ' : 'ĐỒNG BỘ DỮ LIỆU CŨ'}
+                    </${Button}>
+                    <${Button} onClick=${reload}>LÀM MỚI</${Button}>
+                  </div>
+                </header>
+
+                <${Message} message=${migrationMessage}/>
+
+                <div className="lmreact-toolbar">
+                  <label>
+                    <span>Tìm kiếm</span>
+                    <input
+                      type="search"
+                      value=${search}
+                      onChange=${e => setSearch(e.target.value)}
+                      placeholder="Mã bảo hành, SKU, khách hàng, SĐT hoặc email"
+                    />
+                  </label>
+                  <label>
+                    <span>Trạng thái</span>
+                    <select value=${filter} onChange=${e => setFilter(e.target.value)}>
+                      <option value="all">Tất cả</option>
+                      <option value="pending">Chưa kích hoạt</option>
+                      <option value="activated">Đã kích hoạt</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="lmreact-list-meta">
+                  ${loading ? 'Đang tải dữ liệu...' : `${rows.length.toLocaleString('vi-VN')} phiếu được hiển thị`}
+                </div>
+
+                ${error ? html`
+                  <div className="lmreact-empty">
+                    <strong>Không thể tải danh sách</strong>
+                    <span>${error}</span>
+                  </div>
+                ` : loading ? html`
+                  <div className="lmreact-skeleton-stack">
+                    ${[1,2,3,4].map(x => html`<div key=${x} className="lmreact-skeleton"></div>`)}
+                  </div>
+                ` : visible.length ? html`
+                  <div className="lmreact-records">
+                    ${visible.map(item => html`
+                      <article className="lmreact-record" key=${item.warranty_number}>
+                        <div className="lmreact-record-main">
+                          <span>SỐ BẢO HÀNH</span>
+                          <strong>${item.warranty_number || '—'}</strong>
+                          <small>${item.product_name || item.sku || 'Chưa có tên sản phẩm'}</small>
+                        </div>
+                        <div>
+                          <span>KHÁCH HÀNG</span>
+                          <strong>${item.customer_name || '—'}</strong>
+                          <small>${item.customer_phone || item.customer_email || '—'}</small>
+                        </div>
+                        <div>
+                          <span>SKU / THƯƠNG HIỆU</span>
+                          <strong>${item.sku || '—'}</strong>
+                          <small>${item.brand || detectBrand(item.sku) || '—'} · ${formatDate(item.purchase_date)}</small>
+                        </div>
+                        <div className="lmreact-record-status">
+                          <span>TRẠNG THÁI</span>
+                          <${StatusPill} status=${item.status}/>
+                          <small>${formatDateTime(item.created_at)}</small>
+                        </div>
+                        <div className="lmreact-record-actions">
+                          <${Button} onClick=${() => { setModalMessage(null); setEditRecord(item); }}>CHỈNH SỬA</${Button}>
+                          <${Button} variant="danger" onClick=${() => { setModalMessage(null); setDeleteRecord(item); }}>XÓA</${Button}>
+                        </div>
+                      </article>
+                    `)}
+                  </div>
+                ` : html`
+                  <div className="lmreact-empty">
+                    <strong>Không tìm thấy dữ liệu phù hợp</strong>
+                    <span>Thử thay đổi từ khóa hoặc bộ lọc.</span>
+                  </div>
+                `}
+
+                ${pages > 1 ? html`
+                  <div className="lmreact-pagination">
+                    <span>Trang ${safePage} / ${pages}</span>
+                    <div>
+                      <${Button} disabled=${safePage <= 1} onClick=${() => setPage(safePage - 1)}>TRƯỚC</${Button}>
+                      <${Button} disabled=${safePage >= pages} onClick=${() => setPage(safePage + 1)}>SAU</${Button}>
+                    </div>
+                  </div>
+                ` : null}
+
+                <${EditModal}
+                  record=${editRecord}
+                  open=${Boolean(editRecord)}
+                  onClose=${() => setEditRecord(null)}
+                  onSave=${saveEdit}
+                  saving=${savingEdit}
+                  message=${modalMessage}
+                />
+
+                <${Modal}
+                  open=${Boolean(deleteRecord)}
+                  kicker="XÓA PHIẾU"
+                  title="Xác nhận xóa hồ sơ"
+                  onClose=${() => setDeleteRecord(null)}
+                  footer=${html`
+                    <${Button} onClick=${() => setDeleteRecord(null)}>HỦY</${Button}>
+                    <${Button} variant="danger" disabled=${deleting} onClick=${confirmDelete}>
+                      ${deleting ? 'ĐANG XÓA' : 'XÓA PHIẾU'}
+                    </${Button}>
+                  `}
+                >
+                  <div className="lmreact-delete-copy">
+                    <p>Thao tác này sẽ xóa phiếu bảo hành khỏi hệ thống.</p>
+                    <strong>${deleteRecord?.warranty_number || ''}</strong>
+                    <${Message} message=${modalMessage}/>
+                  </div>
+                </${Modal}>
+              </section>
+            `;
+          }
+
+          function EditModal({record, open, onClose, onSave, saving, message}) {
+            const [form, setForm] = useState(null);
+
+            useEffect(() => {
+              if (!record) return;
+              setForm({
+                warrantyNumber: record.warranty_number || '',
+                sku: record.sku || '',
+                productName: record.product_name || '',
+                customerName: record.customer_name || '',
+                phone: record.customer_phone || '',
+                email: record.customer_email || '',
+                purchaseDate: record.purchase_date || '',
+                purchaseLocation: record.purchase_location || 'Khác'
+              });
+            }, [record]);
+
+            if (!open || !form) return null;
+            const brand = detectBrand(form.sku);
+            const patch = (key, value) => setForm(prev => ({...prev,[key]:value}));
+
+            return html`
+              <${Modal}
+                open=${open}
+                kicker="CHỈNH SỬA"
+                title="Cập nhật hồ sơ bảo hành"
+                onClose=${onClose}
+                footer=${html`
+                  <${Button} onClick=${onClose}>HỦY</${Button}>
+                  <${Button}
+                    variant="dark"
+                    disabled=${saving}
+                    onClick=${() => {
+                      if (!brand) return;
+                      onSave(form);
+                    }}
+                  >${saving ? 'ĐANG LƯU' : 'LƯU THAY ĐỔI'}</${Button}>
+                `}
+              >
+                <div className="lmreact-edit-status">
+                  <span>TRẠNG THÁI HIỆN TẠI</span>
+                  <${StatusPill} status=${record.status}/>
+                </div>
+
+                <div className="lmreact-grid two edit-grid">
+                  <${Field} label="Số bảo hành *" full=${true}>
+                    <${Input}
+                      value=${form.warrantyNumber}
+                      onChange=${e => patch('warrantyNumber', normalizeCode(e.target.value))}
+                    />
+                  </${Field}>
+
+                  <${Field} label="SKU *" help=${brand ? `Đã nhận diện ${brand}.` : 'SKU chưa nhận diện được thương hiệu.'}>
+                    <${Input}
+                      value=${form.sku}
+                      onChange=${e => patch('sku', normalizeSku(e.target.value))}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Thương hiệu">
+                    <${Input}
+                      value=${form.sku ? (brand || 'CHƯA NHẬN DIỆN') : ''}
+                      readOnly=${true}
+                      className=${'lmreact-input readonly ' + (brand ? 'recognized' : '')}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Tên sản phẩm" full=${true}>
+                    <${Input}
+                      value=${form.productName}
+                      onChange=${e => patch('productName', e.target.value)}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Họ và tên *">
+                    <${Input}
+                      value=${form.customerName}
+                      onChange=${e => patch('customerName', e.target.value)}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Số điện thoại *">
+                    <${Input}
+                      value=${form.phone}
+                      onChange=${e => patch('phone', e.target.value)}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Email *" full=${true}>
+                    <${Input}
+                      type="email"
+                      value=${form.email}
+                      onChange=${e => patch('email', e.target.value)}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Ngày mua *">
+                    <${Input}
+                      type="date"
+                      value=${form.purchaseDate}
+                      onChange=${e => patch('purchaseDate', e.target.value)}
+                    />
+                  </${Field}>
+
+                  <${Field} label="Nơi mua">
+                    <${Select}
+                      value=${form.purchaseLocation}
+                      onChange=${e => patch('purchaseLocation', e.target.value)}
+                    >
+                      ${LOCATION_OPTIONS.map(x => html`<option key=${x} value=${x}>${x}</option>`)}
+                    </${Select}>
+                  </${Field}>
+                </div>
+
+                <${Message} message=${message}/>
+              </${Modal}>
+            `;
+          }
+
+          function App() {
+            const [tab, setTab] = useState('create');
+            const [warranties, setWarranties] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+
+            async function load() {
+              setLoading(true);
+              setError('');
+              try {
+                const data = await api('/admin/list');
+                setWarranties(Array.isArray(data.warranties) ? data.warranties : []);
+              } catch (e) {
+                setError(e.message);
+              } finally {
+                setLoading(false);
+              }
+            }
+
+            useEffect(() => { load(); }, []);
+
+            const activated = warranties.filter(x => x.status === 'activated').length;
+            const pending = warranties.length - activated;
+
+            return html`
+              <div className="lmreact-app">
+                <header className="lmreact-hero">
+                  <div className="lmreact-hero-copy">
+                    <span>WARRANTY MANAGEMENT</span>
+                    <h1>Quản lý bảo hành</h1>
+                    <p>Tạo mới, tra cứu và cập nhật hồ sơ bảo hành trong một giao diện vận hành tập trung.</p>
+                  </div>
+                  <div className="lmreact-account">
+                    <div>
+                      <span>ĐANG ĐĂNG NHẬP</span>
+                      <strong>${ADMIN.email || '—'}</strong>
+                    </div>
+                    <shopify-account menu="customer-account-main-menu"></shopify-account>
+                  </div>
+                </header>
+
+                <section className="lmreact-stats">
+                  <${Stat} label="Tổng phiếu" value=${warranties.length} caption="Tổng hồ sơ" tone="dark"/>
+                  <${Stat} label="Chưa kích hoạt" value=${pending} caption="Chờ kích hoạt"/>
+                  <${Stat} label="Đã kích hoạt" value=${activated} caption="Đang có hiệu lực"/>
+                </section>
+
+                <div className="lmreact-workspace">
+                  <aside className="lmreact-nav">
+                    <button className=${tab === 'create' ? 'active' : ''} onClick=${() => setTab('create')}>
+                      <span>01</span>
+                      <strong>Tạo phiếu</strong>
+                      <small>Thêm hồ sơ mới</small>
+                    </button>
+                    <button className=${tab === 'list' ? 'active' : ''} onClick=${() => setTab('list')}>
+                      <span>02</span>
+                      <strong>Danh sách</strong>
+                      <small>Tra cứu & cập nhật</small>
+                    </button>
+                  </aside>
+
+                  <main className="lmreact-content">
+                    ${tab === 'create'
+                      ? html`<${CreatePanel} onCreated=${load}/>`
+                      : html`<${ListPanel}
+                          warranties=${warranties}
+                          loading=${loading}
+                          error=${error}
+                          reload=${load}
+                        />`
+                    }
+                  </main>
                 </div>
               </div>
-            </div>
-          </div>
+            `;
+          }
 
-          <div id="create-message" class="lmwa-message" hidden></div>
-
-          <div class="lmwa-actions">
-            <button type="button" class="lmwa-button secondary" id="reset-create">LÀM MỚI</button>
-            <button type="submit" class="lmwa-button primary" id="save-create">TẠO PHIẾU BẢO HÀNH</button>
-          </div>
-        </form>
-
-        <section id="create-result" class="lmwa-created" hidden></section>
-      </section>
-
-      <section class="lmwa-panel" data-panel="list">
-        <header class="lmwa-list-header">
-          <div>
-            <div class="lmwa-kicker">DỮ LIỆU BẢO HÀNH</div>
-            <h2>Danh sách hồ sơ bảo hành</h2>
-          </div>
-
-          <div class="lmwa-header-actions">
-            <button type="button" class="lmwa-button secondary compact" id="migrate-old">ĐỒNG BỘ DỮ LIỆU CŨ</button>
-            <button type="button" class="lmwa-button secondary compact" id="refresh-list">LÀM MỚI</button>
-          </div>
-        </header>
-
-        <div id="migration-message" class="lmwa-message" hidden></div>
-
-        <div class="lmwa-tools">
-          <label>
-            <span>Tìm kiếm</span>
-            <input id="search-list" type="search" placeholder="Mã bảo hành, SKU, thương hiệu, tên, SĐT hoặc email">
-          </label>
-          <label>
-            <span>Trạng thái</span>
-            <select id="filter-status">
-              <option value="all">Tất cả</option>
-              <option value="pending">Chưa kích hoạt</option>
-              <option value="activated">Đã kích hoạt</option>
-            </select>
-          </label>
-        </div>
-
-        <div id="list-meta" class="lmwa-list-meta"></div>
-        <div id="warranty-list" class="lmwa-list"></div>
-
-        <div id="pagination" class="lmwa-pagination" hidden>
-          <div id="pagination-summary"></div>
-          <nav>
-            <button type="button" id="page-prev">TRƯỚC</button>
-            <div id="page-numbers" class="lmwa-page-numbers"></div>
-            <button type="button" id="page-next">SAU</button>
-          </nav>
-        </div>
-      </section>
-
-      <div id="edit-modal" class="lmwa-modal" hidden>
-        <div class="lmwa-backdrop" data-close-edit></div>
-        <section class="lmwa-dialog" role="dialog" aria-modal="true">
-          <header class="lmwa-dialog-header">
-            <div>
-              <div class="lmwa-kicker">CHỈNH SỬA PHIẾU</div>
-              <h2>Cập nhật thông tin bảo hành</h2>
-              <p>Kiểm tra kỹ thông tin trước khi lưu thay đổi.</p>
-            </div>
-            <button type="button" class="lmwa-close" data-close-edit>ĐÓNG</button>
-          </header>
-
-          <form id="edit-form" novalidate>
-            <input id="e-original-code" type="hidden">
-
-            <div class="lmwa-current-status">
-              <span>Trạng thái hiện tại</span>
-              <strong id="e-status"></strong>
-            </div>
-
-            <div class="lmwa-grid two">
-              <label class="lmwa-field">
-                <span>Số bảo hành *</span>
-                <input id="e-code" required>
-              </label>
-              <label class="lmwa-field">
-                <span>SKU sản phẩm *</span>
-                <input id="e-sku" class="uppercase" required>
-              </label>
-              <label class="lmwa-field brand-field" id="e-brand-field">
-                <span>Thương hiệu</span>
-                <input id="e-brand" class="readonly" readonly tabindex="-1">
-                <small id="e-brand-note">Tự nhận diện từ SKU.</small>
-              </label>
-              <label class="lmwa-field">
-                <span>Tên sản phẩm</span>
-                <input id="e-product-name">
-              </label>
-              <label class="lmwa-field">
-                <span>Họ và tên *</span>
-                <input id="e-name" required>
-              </label>
-              <label class="lmwa-field">
-                <span>Số điện thoại *</span>
-                <input id="e-phone" type="tel" inputmode="tel" required>
-              </label>
-              <label class="lmwa-field full">
-                <span>Email *</span>
-                <input id="e-email" type="email" required>
-              </label>
-              <label class="lmwa-field">
-                <span>Ngày mua *</span>
-                <input id="e-date" type="date" required>
-              </label>
-              <label class="lmwa-field">
-                <span>Thời hạn bảo hành</span>
-                <span class="lmwa-suffix">
-                  <input class="readonly" value="24" readonly tabindex="-1>
-                  <span>tháng</span>
-                </span>
-              </label>
-              <div class="lmwa-field lmwa-select-field full">
-                <label for="e-location" class="lmwa-field-label">Nơi mua</label>
-                <select id="e-location">
-                  <option value="Showroom L&M">Showroom L&amp;M</option>
-                  <option value="Online">Online</option>
-                  <option value="Đại lý">Đại lý</option>
-                  <option value="Khác">Khác</option>
-                </select>
-              </div>
-            </div>
-
-            <div id="edit-message" class="lmwa-message" hidden></div>
-
-            <div class="lmwa-dialog-actions">
-              <button type="button" class="lmwa-button secondary" data-close-edit>HỦY</button>
-              <button type="submit" class="lmwa-button primary" id="save-edit">LƯU THAY ĐỔI</button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      <div id="delete-modal" class="lmwa-modal" hidden>
-        <div class="lmwa-backdrop" data-close-delete></div>
-        <section class="lmwa-dialog delete-dialog" role="dialog" aria-modal="true">
-          <header class="lmwa-dialog-header">
-            <div>
-              <div class="lmwa-kicker danger-text">XÓA PHIẾU BẢO HÀNH</div>
-              <h2>Xác nhận xóa dữ liệu</h2>
-              <p>Hệ thống sẽ xóa số bảo hành và giao dịch bảo hành tương ứng.</p>
-            </div>
-          </header>
-
-          <div class="lmwa-delete-code">
-            <span>Số bảo hành</span>
-            <strong id="delete-code"></strong>
-          </div>
-
-          <div id="delete-message" class="lmwa-message error" hidden></div>
-
-          <div class="lmwa-dialog-actions">
-            <button type="button" class="lmwa-button secondary" data-close-delete>HỦY</button>
-            <button type="button" class="lmwa-button danger" id="confirm-delete">XÓA PHIẾU</button>
-          </div>
-        </section>
-      </div>
-    </section>
+          ReactDOM.createRoot(document.getElementById('lmreact-root')).render(html`<${App}/>`);
+        })();
+        </script>
 
       {% else %}
-
-        <section class="lmwa-auth-view">
-          <div class="lmwa-auth-card">
-            <div class="lmwa-kicker">L&amp;M INTERNAL</div>
-            <h1>CHƯA HOÀN TẤT CẤU HÌNH</h1>
-            <p>
-              Tài khoản này chưa được cấp đầy đủ quyền truy cập khu vực quản trị bảo hành.
-              Vui lòng liên hệ người quản trị hệ thống để được hỗ trợ.
-            </p>
-
-            <div class="lmwa-auth-note">
-              <strong>Trạng thái quyền truy cập</strong>
-              <span>Chưa hoàn tất cấu hình tài khoản quản trị.</span>
-            </div>
-
-            <shopify-account menu="customer-account-main-menu"></shopify-account>
-          </div>
-        </section>
-
-      {% endif %}
-
-    {% else %}
-
-      <section class="lmwa-auth-view">
-        <div class="lmwa-auth-card">
-          <div class="lmwa-kicker">L&amp;M INTERNAL</div>
-          <h1>KHÔNG CÓ QUYỀN TRUY CẬP</h1>
-          <p>
-            Tài khoản đã được xác thực nhưng chưa được cấp quyền quản trị bảo hành.
-          </p>
-
-          <div class="lmwa-auth-note">
-            <strong>Tài khoản hiện tại</strong>
-            <span>{{ customer.email | escape }}</span>
-          </div>
-
+        <div class="lmreact-auth-card">
+          <span>QUYỀN TRUY CẬP</span>
+          <h1>Chưa thể mở khu vực quản trị</h1>
+          <p>Tài khoản này chưa được cấu hình đầy đủ quyền quản lý bảo hành.</p>
           <shopify-account menu="customer-account-main-menu"></shopify-account>
         </div>
-      </section>
-
-    {% endif %}
-
-  {% else %}
-
-    <section class="lmwa-auth-view">
-      <div class="lmwa-auth-card">
-        <div class="lmwa-kicker">L&amp;M INTERNAL</div>
-        <h1>QUẢN LÝ BẢO HÀNH</h1>
-        <p>
-          Vui lòng xác thực tài khoản quản trị trước khi truy cập khu vực bảo hành.
-        </p>
-
-        <div class="lmwa-shopify-auth">
-          <div class="lmwa-kicker">XÁC THỰC TÀI KHOẢN</div>
-          <h2>Xác thực tài khoản quản trị</h2>
-          <p>
-            Một mã xác thực sẽ được gửi đến email đăng ký. Sau khi hoàn tất, trang sẽ tự tải lại.
-          </p>
-
-          <shopify-account
-            id="lmwa-admin-account"
-            menu="customer-account-main-menu"
-          >
-            <button
-              type="button"
-              slot="signed-out-avatar"
-              class="lmwa-button primary full"
-            >
-              XÁC THỰC TÀI KHOẢN
-            </button>
-          </shopify-account>
-        </div>
+      {% endif %}
+    {% else %}
+      <div class="lmreact-auth-card">
+        <span>QUYỀN TRUY CẬP</span>
+        <h1>Không có quyền truy cập</h1>
+        <p>Tài khoản hiện tại chưa được cấp quyền quản lý bảo hành.</p>
+        <shopify-account menu="customer-account-main-menu"></shopify-account>
       </div>
-    </section>
+    {% endif %}
+  {% else %}
+    <div class="lmreact-auth-card">
+      <span>QUẢN LÝ BẢO HÀNH</span>
+      <h1>Xác thực tài khoản quản trị</h1>
+      <p>Một mã xác thực sẽ được gửi đến email đăng ký.</p>
+
+      <shopify-account id="lmreact-login-account" menu="customer-account-main-menu">
+        <button type="button" slot="signed-out-avatar" class="lmreact-login-btn">
+          XÁC THỰC TÀI KHOẢN
+        </button>
+      </shopify-account>
+    </div>
 
     <script>
     (function(){
-      function bindAccount(){
-        var account=document.getElementById('lmwa-admin-account');
-
+      function bind(){
+        var account=document.getElementById('lmreact-login-account');
         if(!account || account.dataset.bound==='1') return;
-
         account.dataset.bound='1';
-
         account.addEventListener('close',function(){
-          setTimeout(function(){
-            window.location.reload();
-          },850);
+          setTimeout(function(){ window.location.reload(); },850);
         });
       }
-
-      if(customElements.get('shopify-account')){
-        bindAccount();
-      }else{
-        customElements.whenDefined('shopify-account').then(bindAccount).catch(function(){});
-      }
+      if(customElements.get('shopify-account')) bind();
+      else customElements.whenDefined('shopify-account').then(bind).catch(function(){});
     })();
     </script>
-
   {% endif %}
-
-  </div>
 </section>
 
-{% if customer %}
-  {% if customer.tags contains warranty_admin_tag %}
-    {% if warranty_admin_key != blank %}
-
-<script>
-
-const shopifyAdminNode = document.getElementById('lmwa-shopify-admin-data');
-const SHOPIFY_ADMIN = JSON.parse(shopifyAdminNode?.textContent || '{}');
-const ADMIN_ACCESS_KEY = String(SHOPIFY_ADMIN.adminAccessKey || '');
-
-if (!ADMIN_ACCESS_KEY) {
-  throw new Error('Tài khoản quản trị chưa được cấu hình đầy đủ.');
-}
-
-if (ADMIN_ACCESS_KEY.length < 32) {
-  throw new Error('Thông tin xác thực quản trị chưa hợp lệ.');
-}
-
-/* Production API */
-const API_BASE = 'https://lm-warranty-active.vercel.app/api/warranty';
-
-const PAGE_SIZE = 50;
-
-const BRAND_RULES = [
-  ['GUESS', /^GW0/],
-  ['TED BAKER', /^BKP/],
-  ['PHILIPP PLEIN', /^PW/],
-  ['ADIDAS', /^AO/],
-  ['FURLA', /^WW/],
-  ['LOCMAN ITALY', /^(?:D\d{3}[A-Z]|0\d{3}[A-Z])/],
-  ['VERSUS BY VERSACE', /^VSP/],
-  ['MISSONI', /^MWY/]
-];
-
-const state = {
-  warranties: [],
-  page: 1,
-  deleteTarget: null,
-  authorized: false
-};
-
-const $ = (id) => document.getElementById(id);
-const els = {
-  admin: $('lmwa-admin'),
-  currentEmail: $('lmwa-current-email'),
-
-  total: $('stat-total'),
-  pending: $('stat-pending'),
-  activated: $('stat-activated'),
-
-  createForm: $('create-form'),
-  createMessage: $('create-message'),
-  createResult: $('create-result'),
-  saveCreate: $('save-create'),
-  resetCreate: $('reset-create'),
-  generateCode: $('generate-code'),
-  cName: $('c-name'),
-  cPhone: $('c-phone'),
-  cEmail: $('c-email'),
-  cSku: $('c-sku'),
-  cBrand: $('c-brand'),
-  cBrandField: $('c-brand-field'),
-  cBrandNote: $('c-brand-note'),
-  cProductName: $('c-product-name'),
-  cDate: $('c-date'),
-  cLocation: $('c-location'),
-  cCode: $('c-code'),
-
-  list: $('warranty-list'),
-  listMeta: $('list-meta'),
-  search: $('search-list'),
-  filter: $('filter-status'),
-  refresh: $('refresh-list'),
-  migrate: $('migrate-old'),
-  migrationMessage: $('migration-message'),
-  pagination: $('pagination'),
-  paginationSummary: $('pagination-summary'),
-  pageNumbers: $('page-numbers'),
-  pagePrev: $('page-prev'),
-  pageNext: $('page-next'),
-
-  editModal: $('edit-modal'),
-  editForm: $('edit-form'),
-  editMessage: $('edit-message'),
-  eOriginalCode: $('e-original-code'),
-  eCode: $('e-code'),
-  eSku: $('e-sku'),
-  eBrand: $('e-brand'),
-  eBrandField: $('e-brand-field'),
-  eBrandNote: $('e-brand-note'),
-  eProductName: $('e-product-name'),
-  eName: $('e-name'),
-  ePhone: $('e-phone'),
-  eEmail: $('e-email'),
-  eDate: $('e-date'),
-  eLocation: $('e-location'),
-  eStatus: $('e-status'),
-  saveEdit: $('save-edit'),
-
-  deleteModal: $('delete-modal'),
-  deleteCode: $('delete-code'),
-  deleteMessage: $('delete-message'),
-  confirmDelete: $('confirm-delete')
-};
-
-const normalizeSku = (v) => String(v || '').trim().toUpperCase();
-const normalizeCode = (v) => String(v || '').trim().toUpperCase().replace(/\s+/g, '');
-const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
-const normalizePhone = (v) => String(v || '').replace(/[^\d+]/g, '').trim();
-
-function esc(v) {
-  const d = document.createElement('div');
-  d.textContent = v == null ? '' : String(v);
-  return d.innerHTML;
-}
-
-function detectBrand(v) {
-  const sku = normalizeSku(v);
-  const match = BRAND_RULES.find(([, re]) => re.test(sku));
-  return match ? match[0] : '';
-}
-
-function formatDate(v) {
-  if (!v) return '—';
-  const d = new Date(v + 'T00:00:00');
-  return Number.isNaN(d.getTime())
-    ? v
-    : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function formatDateTime(v) {
-  if (!v) return '';
-  const d = new Date(v);
-  return Number.isNaN(d.getTime())
-    ? ''
-    : d.toLocaleString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-}
-
-function setToday() {
-  if (els.cDate.value) return;
-  const d = new Date();
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  els.cDate.value = local.toISOString().slice(0, 10);
-}
-
-function showMessage(el, type, text) {
-  el.hidden = false;
-  el.className = 'lmwa-message ' + type;
-  el.textContent = text;
-}
-
-function hideMessage(el) {
-  el.hidden = true;
-  el.textContent = '';
-  el.className = 'lmwa-message';
-}
-
-async function api(path, options = {}) {
-  const headers = {
-    Accept: 'application/json',
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-    ...(options.headers || {}),
-    'X-Warranty-Admin-Key': ADMIN_ACCESS_KEY,
-    'X-Shopify-Customer-Email': SHOPIFY_ADMIN.email || ''
-  };
-
-  const response = await fetch(API_BASE + path, {
-    cache: 'no-store',
-    ...options,
-    headers
-  });
-
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const error = new Error(payload.error || 'Yêu cầu không thành công.');
-    error.status = response.status;
-    throw error;
-  }
-
-  return payload;
-}
-
-function syncBrand(input, brandInput, field, note) {
-  const upper = normalizeSku(input.value);
-  if (input.value !== upper) input.value = upper;
-
-  const brand = detectBrand(upper);
-  brandInput.value = upper ? (brand || 'CHƯA NHẬN DIỆN') : '';
-
-  field.classList.toggle('recognized', Boolean(brand));
-  field.classList.toggle('unrecognized', Boolean(upper) && !brand);
-
-  note.textContent = !upper
-    ? 'Tự nhận diện theo cấu trúc SKU.'
-    : brand
-      ? `Đã nhận diện ${brand} · Bảo hành 24 tháng.`
-      : 'SKU chưa khớp 8 thương hiệu đang cấu hình.';
-
-  return brand;
-}
-
-const syncCreateBrand = () =>
-  syncBrand(els.cSku, els.cBrand, els.cBrandField, els.cBrandNote);
-
-const syncEditBrand = () =>
-  syncBrand(els.eSku, els.eBrand, els.eBrandField, els.eBrandNote);
-
-els.cSku.addEventListener('input', syncCreateBrand);
-els.eSku.addEventListener('input', syncEditBrand);
-
-els.cSku.addEventListener('blur', async () => {
-  const sku = normalizeSku(els.cSku.value);
-  syncCreateBrand();
-
-  if (!sku || els.cProductName.value.trim()) return;
-
-  try {
-    const data = await api('/admin/product?sku=' + encodeURIComponent(sku));
-    if (data.productName) els.cProductName.value = data.productName;
-  } catch (error) {
-    console.warn('Product lookup:', error);
-  }
-});
-
-document.querySelectorAll('.lmwa-tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.lmwa-tab').forEach((x) => x.classList.toggle('active', x === tab));
-    document.querySelectorAll('.lmwa-panel').forEach((panel) => {
-      panel.classList.toggle('active', panel.dataset.panel === tab.dataset.tab);
-    });
-  });
-});
-
-function createPayload() {
-  return {
-    customerName: els.cName.value.trim(),
-    phone: normalizePhone(els.cPhone.value),
-    email: normalizeEmail(els.cEmail.value),
-    sku: normalizeSku(els.cSku.value),
-    productName: els.cProductName.value.trim(),
-    purchaseDate: els.cDate.value,
-    purchaseLocation: els.cLocation.value,
-    warrantyNumber: normalizeCode(els.cCode.value)
-  };
-}
-
-els.generateCode.addEventListener('click', async () => {
-  const original = els.generateCode.textContent;
-  els.generateCode.disabled = true;
-  els.generateCode.textContent = 'ĐANG TẠO';
-
-  try {
-    const data = await api('/admin/generate-code');
-    els.cCode.value = data.warrantyNumber || '';
-  } catch (error) {
-    showMessage(els.createMessage, 'error', error.message);
-  } finally {
-    els.generateCode.disabled = false;
-    els.generateCode.textContent = original;
-  }
-});
-
-els.createForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  hideMessage(els.createMessage);
-  els.createResult.hidden = true;
-
-  if (!syncCreateBrand()) {
-    return showMessage(els.createMessage, 'error', 'SKU chưa nhận diện được thương hiệu.');
-  }
-
-  const original = els.saveCreate.textContent;
-  els.saveCreate.disabled = true;
-  els.saveCreate.textContent = 'ĐANG LƯU';
-
-  try {
-    const result = await api('/admin/create', {
-      method: 'POST',
-      body: JSON.stringify(createPayload())
-    });
-
-    const w = result.warranty;
-
-    els.createResult.hidden = false;
-    els.createResult.innerHTML = `
-      <div class="lmwa-kicker">PHIẾU ĐÃ ĐƯỢC TẠO</div>
-      <h3>${esc(w.warranty_number)}</h3>
-      <p>Phiếu đang ở trạng thái chờ khách hàng kích hoạt.</p>
-      <div class="lmwa-created-grid">
-        <div><span>Khách hàng</span><strong>${esc(w.customer_name)}</strong></div>
-        <div><span>SKU</span><strong>${esc(w.sku)}</strong><small>${esc(w.brand)}</small></div>
-        <div><span>Ngày mua</span><strong>${esc(formatDate(w.purchase_date))}</strong></div>
-        <div><span>Thời hạn</span><strong>24 tháng</strong></div>
-      </div>
-    `;
-
-    els.createForm.reset();
-    els.cBrand.value = '';
-    setToday();
-    syncCreateBrand();
-
-    await loadWarranties();
-  } catch (error) {
-    showMessage(els.createMessage, 'error', error.message);
-  } finally {
-    els.saveCreate.disabled = false;
-    els.saveCreate.textContent = original;
-  }
-});
-
-els.resetCreate.addEventListener('click', () => {
-  els.createForm.reset();
-  els.cBrand.value = '';
-  els.createResult.hidden = true;
-  hideMessage(els.createMessage);
-  setToday();
-  syncCreateBrand();
-});
-
-async function loadWarranties() {
-  els.listMeta.textContent = 'Đang tải dữ liệu...';
-
-  try {
-    const data = await api('/admin/list');
-    state.warranties = Array.isArray(data.warranties) ? data.warranties : [];
-    state.page = 1;
-    updateStats();
-    renderList();
-  } catch (error) {
-    els.listMeta.textContent = 'Không thể tải dữ liệu.';
-    els.list.innerHTML = `<div class="lmwa-empty"><strong>Không thể tải danh sách</strong><span>${esc(error.message)}</span></div>`;
-  }
-}
-
-function updateStats() {
-  const total = state.warranties.length;
-  const activated = state.warranties.filter((x) => x.status === 'activated').length;
-  els.total.textContent = total.toLocaleString('vi-VN');
-  els.activated.textContent = activated.toLocaleString('vi-VN');
-  els.pending.textContent = (total - activated).toLocaleString('vi-VN');
-}
-
-function filtered() {
-  const q = String(els.search.value || '').trim().toLowerCase();
-  const f = els.filter.value;
-
-  return state.warranties.filter((item) => {
-    const statusOk =
-      f === 'all' ||
-      (f === 'activated' && item.status === 'activated') ||
-      (f === 'pending' && item.status !== 'activated');
-
-    if (!statusOk) return false;
-    if (!q) return true;
-
-    return [
-      item.warranty_number,
-      item.customer_name,
-      item.customer_phone,
-      item.customer_email,
-      item.sku,
-      item.brand,
-      item.product_name
-    ].join(' ').toLowerCase().includes(q);
-  });
-}
-
-function pageItems(current, total) {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-
-  const arr = [1];
-  if (current > 4) arr.push('left');
-
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-
-  for (let p = start; p <= end; p++) arr.push(p);
-
-  if (current < total - 3) arr.push('right');
-  arr.push(total);
-
-  return arr;
-}
-
-function renderPagination(total, start, end) {
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  if (total <= PAGE_SIZE) {
-    els.pagination.hidden = true;
-    return;
-  }
-
-  els.pagination.hidden = false;
-  els.paginationSummary.textContent =
-    `Hiển thị ${start + 1}–${end} trên ${total.toLocaleString('vi-VN')} phiếu`;
-
-  els.pagePrev.disabled = state.page <= 1;
-  els.pageNext.disabled = state.page >= pages;
-
-  els.pageNumbers.innerHTML = pageItems(state.page, pages).map((p) => {
-    if (typeof p === 'string') return '<span class="lmwa-ellipsis">…</span>';
-
-    return `<button type="button" class="${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`;
-  }).join('');
-}
-
-function renderList() {
-  const rows = filtered();
-  const total = rows.length;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  if (state.page > pages) state.page = pages;
-
-  if (!total) {
-    els.listMeta.textContent = '0 phiếu được hiển thị';
-    els.list.innerHTML =
-      '<div class="lmwa-empty"><strong>Không tìm thấy dữ liệu phù hợp</strong><span>Thử thay đổi từ khóa hoặc bộ lọc.</span></div>';
-    els.pagination.hidden = true;
-    return;
-  }
-
-  const start = (state.page - 1) * PAGE_SIZE;
-  const end = Math.min(start + PAGE_SIZE, total);
-  const pageRows = rows.slice(start, end);
-
-  els.listMeta.textContent = total > PAGE_SIZE
-    ? `Đang hiển thị ${start + 1}–${end} trong ${total.toLocaleString('vi-VN')} phiếu`
-    : `${total.toLocaleString('vi-VN')} phiếu được hiển thị`;
-
-  els.list.innerHTML = pageRows.map((item) => {
-    const activated = item.status === 'activated';
-
-    return `
-      <article class="lmwa-row">
-        <div class="lmwa-row-main">
-          <span class="lmwa-row-label">Số bảo hành</span>
-          <strong>${esc(item.warranty_number || '—')}</strong>
-          <small>${esc(item.product_name || item.sku || 'Chưa có tên sản phẩm')}</small>
-        </div>
-
-        <div>
-          <span class="lmwa-row-label">Khách hàng</span>
-          <strong>${esc(item.customer_name || '—')}</strong>
-          <small>${esc(item.customer_phone || item.customer_email || '—')}</small>
-        </div>
-
-        <div>
-          <span class="lmwa-row-label">SKU / Thương hiệu</span>
-          <strong>${esc(item.sku || '—')}</strong>
-          <small>${esc(item.brand || detectBrand(item.sku) || '—')} · ${esc(formatDate(item.purchase_date))}</small>
-        </div>
-
-        <div class="lmwa-row-status">
-          <span class="lmwa-row-label">Trạng thái</span>
-          <span class="lmwa-status ${activated ? 'activated' : 'pending'}">
-            ${activated ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
-          </span>
-          <small>${esc(formatDateTime(item.created_at))}</small>
-        </div>
-
-        <div class="lmwa-row-actions">
-          <button type="button" class="edit" data-edit="${esc(item.warranty_number)}">CHỈNH SỬA</button>
-          <button type="button" class="delete" data-delete="${esc(item.warranty_number)}">XÓA</button>
-        </div>
-      </article>
-    `;
-  }).join('');
-
-  renderPagination(total, start, end);
-}
-
-function goPage(page) {
-  const pages = Math.max(1, Math.ceil(filtered().length / PAGE_SIZE));
-  state.page = Math.max(1, Math.min(Number(page) || 1, pages));
-  renderList();
-
-  const y = els.listMeta.getBoundingClientRect().top + window.scrollY - 100;
-  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-}
-
-let searchTimer = null;
-els.search.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    state.page = 1;
-    renderList();
-  }, 120);
-});
-
-els.filter.addEventListener('change', () => {
-  state.page = 1;
-  renderList();
-});
-
-els.refresh.addEventListener('click', loadWarranties);
-els.pagePrev.addEventListener('click', () => goPage(state.page - 1));
-els.pageNext.addEventListener('click', () => goPage(state.page + 1));
-els.pageNumbers.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-page]');
-  if (button) goPage(Number(button.dataset.page));
-});
-
-els.migrate.addEventListener('click', async () => {
-  if (!window.confirm('Đồng bộ dữ liệu bảo hành cũ sang index warranties? Dữ liệu index hiện có sẽ không bị ghi đè.')) return;
-
-  const original = els.migrate.textContent;
-  els.migrate.disabled = true;
-  els.migrate.textContent = 'ĐANG ĐỒNG BỘ';
-  hideMessage(els.migrationMessage);
-
-  try {
-    const data = await api('/admin/migrate', {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
-
-    showMessage(
-      els.migrationMessage,
-      'success',
-      `Đồng bộ hoàn tất: tạo ${data.created || 0} index mới, bỏ qua ${data.skipped || 0} index đã tồn tại.`
-    );
-
-    await loadWarranties();
-  } catch (error) {
-    showMessage(els.migrationMessage, 'error', error.message);
-  } finally {
-    els.migrate.disabled = false;
-    els.migrate.textContent = original;
-  }
-});
-
-function findRecord(code) {
-  return state.warranties.find((x) => x.warranty_number === code) || null;
-}
-
-function openModal(modal) {
-  modal.hidden = false;
-  document.documentElement.classList.add('lmwa-modal-open');
-}
-
-function closeModal(modal) {
-  modal.hidden = true;
-  document.documentElement.classList.remove('lmwa-modal-open');
-}
-
-document.querySelectorAll('[data-close-edit]').forEach((x) =>
-  x.addEventListener('click', () => closeModal(els.editModal))
-);
-
-document.querySelectorAll('[data-close-delete]').forEach((x) =>
-  x.addEventListener('click', () => closeModal(els.deleteModal))
-);
-
-function openEdit(record) {
-  hideMessage(els.editMessage);
-
-  els.eOriginalCode.value = record.warranty_number || '';
-  els.eCode.value = record.warranty_number || '';
-  els.eSku.value = record.sku || '';
-  els.eProductName.value = record.product_name || '';
-  els.eName.value = record.customer_name || '';
-  els.ePhone.value = record.customer_phone || '';
-  els.eEmail.value = record.customer_email || '';
-  els.eDate.value = record.purchase_date || '';
-  els.eLocation.value = record.purchase_location || 'Khác';
-
-  els.eStatus.textContent = record.status === 'activated'
-    ? 'Đã kích hoạt'
-    : 'Chưa kích hoạt';
-
-  els.eStatus.className =
-    'lmwa-status ' + (record.status === 'activated' ? 'activated' : 'pending');
-
-  syncEditBrand();
-  openModal(els.editModal);
-}
-
-function openDelete(record) {
-  state.deleteTarget = record;
-  els.deleteCode.textContent = record.warranty_number || '';
-  els.deleteMessage.hidden = true;
-  openModal(els.deleteModal);
-}
-
-els.list.addEventListener('click', (event) => {
-  const edit = event.target.closest('[data-edit]');
-
-  if (edit) {
-    const record = findRecord(edit.dataset.edit);
-    if (record) openEdit(record);
-    return;
-  }
-
-  const del = event.target.closest('[data-delete]');
-
-  if (del) {
-    const record = findRecord(del.dataset.delete);
-    if (record) openDelete(record);
-  }
-});
-
-els.editForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  hideMessage(els.editMessage);
-
-  if (!syncEditBrand()) {
-    return showMessage(els.editMessage, 'error', 'SKU chưa nhận diện được thương hiệu.');
-  }
-
-  const original = els.saveEdit.textContent;
-  els.saveEdit.disabled = true;
-  els.saveEdit.textContent = 'ĐANG LƯU';
-
-  try {
-    await api('/admin/update', {
-      method: 'POST',
-      body: JSON.stringify({
-        originalCode: normalizeCode(els.eOriginalCode.value),
-        warrantyNumber: normalizeCode(els.eCode.value),
-        sku: normalizeSku(els.eSku.value),
-        productName: els.eProductName.value.trim(),
-        customerName: els.eName.value.trim(),
-        phone: normalizePhone(els.ePhone.value),
-        email: normalizeEmail(els.eEmail.value),
-        purchaseDate: els.eDate.value,
-        purchaseLocation: els.eLocation.value
-      })
-    });
-
-    closeModal(els.editModal);
-    await loadWarranties();
-  } catch (error) {
-    showMessage(els.editMessage, 'error', error.message);
-  } finally {
-    els.saveEdit.disabled = false;
-    els.saveEdit.textContent = original;
-  }
-});
-
-els.confirmDelete.addEventListener('click', async () => {
-  if (!state.deleteTarget) return;
-
-  const original = els.confirmDelete.textContent;
-  els.confirmDelete.disabled = true;
-  els.confirmDelete.textContent = 'ĐANG XÓA';
-  hideMessage(els.deleteMessage);
-
-  try {
-    await api('/admin/delete', {
-      method: 'POST',
-      body: JSON.stringify({
-        warrantyNumber: state.deleteTarget.warranty_number
-      })
-    });
-
-    state.deleteTarget = null;
-    closeModal(els.deleteModal);
-    await loadWarranties();
-  } catch (error) {
-    showMessage(els.deleteMessage, 'error', error.message);
-  } finally {
-    els.confirmDelete.disabled = false;
-    els.confirmDelete.textContent = original;
-  }
-});
-
-els.currentEmail.textContent = SHOPIFY_ADMIN.email || '—';
-setToday();
-syncCreateBrand();
-loadWarranties();
-
-</script>
-
-    {% endif %}
-  {% endif %}
-{% endif %}
-
-
-
-
-
-
 <style>
-/* ==========================================================
-   L&M WARRANTY — FRESH ADMIN UI
-   This stylesheet intentionally replaces every prior version.
-   ========================================================== */
-
-.lmwa{
-  --ink:#172019;
-  --text:#2e3831;
-  --muted:#727b74;
-  --forest:#244430;
-  --forest-2:#315d40;
-  --forest-3:#3d6a4b;
-  --sage:#eaf0eb;
-  --sage-2:#f3f6f3;
-  --ivory:#f5f4ef;
-  --paper:#ffffff;
-  --line:#d8ded9;
-  --line-strong:#b9c5bc;
-  --danger:#8e4844;
-  --danger-bg:#f8eeee;
-  --pending:#765d2e;
-  --pending-bg:#f5f0e5;
-  --success:#28563a;
-  --success-bg:#e8f1ea;
+.lmreact-shell{
+  --forest:#23452f;
+  --forest-2:#2f5a3d;
+  --forest-3:#3b6848;
+  --ink:#121914;
+  --text:#283129;
+  --muted:#68736b;
+  --surface:#ffffff;
+  --surface-2:#f1f4f1;
+  --surface-3:#e7ece8;
+  --line:#c9d2cb;
+  --line-dark:#9fabA1;
+  --cream:#f1efe9;
+  --danger:#8b4542;
+  --danger-bg:#faeeee;
+  --pending:#70582d;
+  --pending-bg:#f2ecdf;
+  --success:#285a39;
+  --success-bg:#e6f0e8;
 
   box-sizing:border-box;
   width:100%;
-  padding:34px 18px 72px;
+  min-height:70vh;
+  padding:34px 18px 74px;
   background:
-    radial-gradient(circle at 8% 0%,rgba(36,68,48,.07),transparent 26%),
-    var(--ivory);
+    radial-gradient(circle at 8% 0%,rgba(35,69,47,.08),transparent 27%),
+    var(--cream);
   color:var(--text);
   font-family:inherit;
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
 }
 
-.lmwa *,
-.lmwa *:before,
-.lmwa *:after{box-sizing:border-box}
+.lmreact-shell *,
+.lmreact-shell *:before,
+.lmreact-shell *:after{box-sizing:border-box}
 
-.lmwa [hidden]{display:none!important}
+.lmreact-shell button,
+.lmreact-shell input,
+.lmreact-shell select{font:inherit}
 
-.lmwa button,
-.lmwa input,
-.lmwa select{font:inherit}
-
-.lmwa-shell{
-  width:min(1220px,100%);
+.lmreact-app,
+.lmreact-auth-card,
+.lmreact-boot,
+.lmreact-auth-error{
+  width:min(1240px,100%);
   margin:0 auto;
 }
 
-/* ---------- Hero ---------- */
-.lmwa-top{
+.lmreact-boot,
+.lmreact-auth-error{
+  padding:34px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:#fff;
+  color:var(--muted);
+  font-weight:650;
+}
+
+/* HERO */
+.lmreact-hero{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(220px,310px);
+  grid-template-columns:minmax(0,1fr) minmax(260px,330px);
   gap:28px;
   align-items:end;
-  padding:36px 38px;
-  border-radius:20px;
+  padding:38px 40px;
+  border-radius:22px;
   background:
-    radial-gradient(circle at 85% 0%,rgba(255,255,255,.10),transparent 26%),
-    linear-gradient(135deg,#1e3a29 0%,#294d35 55%,#315a3d 100%);
+    radial-gradient(circle at 85% 0%,rgba(255,255,255,.12),transparent 27%),
+    linear-gradient(135deg,#193522,#23472f 56%,#305a3c 100%);
   color:#fff;
-  box-shadow:0 22px 50px rgba(28,48,34,.16);
+  box-shadow:0 24px 54px rgba(26,45,32,.18);
 }
 
-.lmwa-top h1{
-  margin:0;
-  color:#fff;
-  font-size:clamp(30px,4vw,44px);
-  font-weight:760;
-  line-height:1.03;
-  letter-spacing:-.035em;
+.lmreact-hero-copy>span,
+.lmreact-account span,
+.lmreact-eyebrow{
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.15em;
+  text-transform:uppercase;
 }
 
-.lmwa-top p{
-  max-width:720px;
-  margin:15px 0 0;
-  color:rgba(255,255,255,.72);
+.lmreact-hero-copy>span{color:rgba(255,255,255,.54)}
+
+.lmreact-hero h1{
+  margin:10px 0 0;
+  color:#fff;
+  font-size:clamp(34px,4.6vw,50px);
+  font-weight:800;
+  line-height:1;
+  letter-spacing:-.045em;
+}
+
+.lmreact-hero p{
+  max-width:680px;
+  margin:14px 0 0;
+  color:rgba(255,255,255,.68);
   font-size:13px;
-  font-weight:500;
-  line-height:1.75;
+  font-weight:560;
+  line-height:1.7;
 }
 
-.lmwa-user{
+.lmreact-account{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:14px;
   padding:15px 16px;
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:12px;
+  border:1px solid rgba(255,255,255,.20);
+  border-radius:13px;
   background:rgba(255,255,255,.08);
-  backdrop-filter:blur(8px);
 }
-
-.lmwa-user span,
-.lmwa-user strong{display:block}
-.lmwa-user span{
-  color:rgba(255,255,255,.55);
-  font-size:8px;
-  font-weight:800;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-}
-.lmwa-user strong{
+.lmreact-account span{color:rgba(255,255,255,.54)}
+.lmreact-account strong{
+  display:block;
+  max-width:220px;
   margin-top:5px;
   overflow:hidden;
   color:#fff;
   font-size:11px;
-  font-weight:650;
+  font-weight:750;
   text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
-/* ---------- Stats ---------- */
-.lmwa-stats{
+/* STATS */
+.lmreact-stats{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:12px;
-  margin:18px 0 0;
+  margin-top:16px;
 }
-
-.lmwa-stat{
-  min-width:0;
-  padding:19px 20px 18px;
-  border:1px solid rgba(36,68,48,.12);
-  border-radius:14px;
-  background:var(--paper);
-  box-shadow:0 9px 22px rgba(31,42,34,.045);
+.lmreact-stat{
+  padding:19px 20px;
+  border:1.5px solid #c7d0c9;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 10px 24px rgba(27,39,30,.045);
 }
-
-.lmwa-stat span,
-.lmwa-stat strong,
-.lmwa-stat small{display:block}
-
-.lmwa-stat span{
-  color:#6c756e;
+.lmreact-stat span,
+.lmreact-stat strong,
+.lmreact-stat small{display:block}
+.lmreact-stat span{
+  color:#5d6960;
   font-size:9px;
   font-weight:800;
-  letter-spacing:.08em;
+  letter-spacing:.07em;
   text-transform:uppercase;
 }
-
-.lmwa-stat strong{
+.lmreact-stat strong{
   margin-top:8px;
   color:var(--ink);
-  font-size:30px;
-  font-weight:780;
+  font-size:31px;
+  font-weight:850;
   line-height:1;
-  letter-spacing:-.035em;
+  letter-spacing:-.04em;
 }
-
-.lmwa-stat small{
+.lmreact-stat small{
   margin-top:7px;
-  color:#858d87;
+  color:#7f8881;
   font-size:10px;
-  font-weight:520;
+  font-weight:600;
 }
-
-.lmwa-stat.total{
+.lmreact-stat.dark{
   border-color:var(--forest);
   background:var(--forest);
 }
-.lmwa-stat.total span,
-.lmwa-stat.total strong{color:#fff}
-.lmwa-stat.total small{color:rgba(255,255,255,.62)}
+.lmreact-stat.dark span,
+.lmreact-stat.dark strong{color:#fff}
+.lmreact-stat.dark small{color:rgba(255,255,255,.62)}
 
-/* ---------- Tabs ---------- */
-.lmwa-tabs{
-  display:flex;
-  gap:6px;
-  width:max-content;
-  margin:24px 0 0;
-  padding:5px;
-  border:1px solid #d4dbd5;
-  border-radius:12px;
-  background:#e9edea;
+/* WORKSPACE */
+.lmreact-workspace{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  gap:16px;
+  align-items:start;
+  margin-top:20px;
 }
-
-.lmwa-tab{
-  min-height:42px;
-  padding:0 18px;
-  border:0;
-  border-radius:8px;
+.lmreact-nav{
+  position:sticky;
+  top:18px;
+  display:grid;
+  gap:7px;
+  padding:8px;
+  border:1.5px solid #cbd3cd;
+  border-radius:15px;
+  background:#e7ebe8;
+}
+.lmreact-nav button{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  gap:0 10px;
+  min-height:70px;
+  align-items:center;
+  padding:11px 12px;
+  border:1px solid transparent;
+  border-radius:10px;
   background:transparent;
-  color:#637067;
+  color:#4b5850;
   cursor:pointer;
-  font-size:9px;
-  font-weight:820;
-  letter-spacing:.085em;
+  text-align:left;
 }
-
-.lmwa-tab.active{
+.lmreact-nav button>span{
+  grid-row:1/3;
+  display:flex;
+  width:34px;
+  height:34px;
+  align-items:center;
+  justify-content:center;
+  border:1.5px solid #afbbb2;
+  border-radius:8px;
   background:#fff;
-  color:var(--forest);
-  box-shadow:0 4px 12px rgba(31,42,34,.08);
+  font-size:9px;
+  font-weight:850;
 }
+.lmreact-nav button strong{
+  align-self:end;
+  font-size:11px;
+  font-weight:800;
+}
+.lmreact-nav button small{
+  align-self:start;
+  color:#808981;
+  font-size:9px;
+  font-weight:600;
+}
+.lmreact-nav button.active{
+  border-color:var(--forest);
+  background:var(--forest);
+  color:#fff;
+  box-shadow:0 8px 18px rgba(35,69,47,.16);
+}
+.lmreact-nav button.active>span{
+  border-color:rgba(255,255,255,.38);
+  background:rgba(255,255,255,.10);
+  color:#fff;
+}
+.lmreact-nav button.active small{color:rgba(255,255,255,.62)}
 
-/* ---------- Panels ---------- */
-.lmwa-panel{display:none;padding-top:30px}
-.lmwa-panel.active{display:block}
-
-.lmwa-section-header,
-.lmwa-list-header{
+.lmreact-content{
+  min-width:0;
+  border:1.5px solid #c9d2cb;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 13px 34px rgba(27,39,30,.045);
+}
+.lmreact-panel{padding:30px}
+.lmreact-panel-head{
   display:flex;
   justify-content:space-between;
-  gap:24px;
+  gap:20px;
   align-items:flex-end;
-  margin-bottom:18px;
+  padding-bottom:22px;
+  border-bottom:1px solid #e1e5e2;
 }
-
-.lmwa-kicker{
-  color:var(--forest-2);
-  font-size:8px;
-  font-weight:840;
-  letter-spacing:.13em;
-  text-transform:uppercase;
-}
-
-.lmwa-section-header h2,
-.lmwa-list-header h2,
-.lmwa-dialog-header h2{
+.lmreact-eyebrow{color:var(--forest-2)}
+.lmreact-panel-head h2{
   margin:7px 0 0;
   color:var(--ink);
-  font-size:25px;
-  font-weight:730;
-  line-height:1.15;
-  letter-spacing:-.025em;
+  font-size:29px;
+  font-weight:820;
+  line-height:1.1;
+  letter-spacing:-.035em;
 }
-
-.lmwa-section-header>p,
-.lmwa-dialog-header p{
-  max-width:420px;
-  margin:0;
-  color:var(--muted);
+.lmreact-panel-head p{
+  max-width:620px;
+  margin:8px 0 0;
+  color:#747e76;
   font-size:11px;
-  font-weight:500;
+  font-weight:560;
   line-height:1.6;
 }
 
-/* ---------- Create form ---------- */
-#create-form{
-  overflow:hidden;
-  border:1px solid var(--line);
-  border-radius:17px;
-  background:#fff;
-  box-shadow:0 12px 32px rgba(31,42,34,.045);
+/* FORM */
+.lmreact-form{margin-top:24px}
+.lmreact-form-section + .lmreact-form-section{
+  margin-top:26px;
+  padding-top:26px;
+  border-top:1px solid #e1e5e2;
 }
-
-.lmwa-form-card{
-  padding:28px 30px 30px;
-  background:#fff;
-}
-
-.lmwa-form-card + .lmwa-form-card{
-  border-top:1px solid #e4e8e5;
-}
-
-.lmwa-form-title{
+.lmreact-section-title{
   display:flex;
-  gap:13px;
+  gap:12px;
   align-items:flex-start;
-  margin-bottom:23px;
+  margin-bottom:18px;
 }
-
-.lmwa-form-title>span{
+.lmreact-section-title>span{
   display:flex;
-  width:31px;
-  height:31px;
-  flex:0 0 31px;
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
   align-items:center;
   justify-content:center;
   border-radius:8px;
   background:var(--forest);
   color:#fff;
   font-size:9px;
-  font-weight:820;
+  font-weight:850;
 }
-
-.lmwa-form-title strong,
-.lmwa-form-title small{display:block}
-.lmwa-form-title strong{
-  color:var(--ink);
-  font-size:15px;
-  font-weight:720;
+.lmreact-section-title strong,
+.lmreact-section-title small{display:block}
+.lmreact-section-title strong{
+  color:#223027;
+  font-size:14px;
+  font-weight:800;
 }
-.lmwa-form-title small{
-  max-width:640px;
+.lmreact-section-title small{
   margin-top:4px;
-  color:#7a837c;
-  font-size:10px;
-  font-weight:500;
-  line-height:1.55;
+  color:#7b847d;
+  font-size:9px;
+  font-weight:560;
+  line-height:1.5;
 }
 
-/* ---------- Fields: intentionally flat, not cards ---------- */
-.lmwa-grid{
+.lmreact-grid{
   display:grid;
-  gap:17px 18px;
+  gap:16px 18px;
 }
-.lmwa-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
-.lmwa-field.full{grid-column:1/-1}
+.lmreact-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lmreact-field.full{grid-column:1/-1}
 
-.lmwa-field{
+.lmreact-field{
   display:flex;
   min-width:0;
   flex-direction:column;
-  margin:0;
 }
-
-.lmwa-field>span:first-child,
-.lmwa-field-label{
+.lmreact-label{
   display:block;
   margin:0 0 7px;
-  color:#414c44;
+  color:#354239;
   font-size:10px;
-  font-weight:720;
-  line-height:1.3;
+  font-weight:780;
 }
-
-.lmwa-field>small{
+.lmreact-field small{
   display:block;
   margin:6px 2px 0;
-  color:#8b928d;
+  color:#858e87;
   font-size:9px;
-  font-weight:500;
+  font-weight:560;
   line-height:1.45;
 }
 
-.lmwa-field input,
-.lmwa-field select{
+.lmreact-input,
+.lmreact-select{
   width:100%;
-  height:52px;
-  margin:0;
+  height:54px;
   padding:0 14px;
-  border:1.5px solid var(--line-strong);
+  border:2px solid #aebbb1;
   border-radius:10px;
   outline:none;
   background:#fff;
-  color:#202a22;
-  box-shadow:0 1px 1px rgba(31,42,34,.015);
+  color:#172019;
+  box-shadow:0 1px 0 rgba(19,28,21,.02);
   font-size:13px;
-  font-weight:600;
-  line-height:1;
+  font-weight:680;
   transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
 }
-
-.lmwa-field input::placeholder{color:#9ca49e;font-weight:500}
-
-.lmwa-field input:hover,
-.lmwa-field select:hover{border-color:#91a095}
-
-.lmwa-field input:focus,
-.lmwa-field select:focus{
+.lmreact-input::placeholder{color:#989f9a;font-weight:540}
+.lmreact-input:hover,
+.lmreact-select:hover{border-color:#7e9384}
+.lmreact-input:focus,
+.lmreact-select:focus{
   border-color:var(--forest-2);
-  box-shadow:0 0 0 3px rgba(49,93,64,.10);
+  box-shadow:0 0 0 4px rgba(47,90,61,.11);
 }
-
-.lmwa-field select,
-.lmwa-tools select{
+.lmreact-select{
   -webkit-appearance:menulist!important;
   appearance:auto!important;
   cursor:pointer!important;
   pointer-events:auto!important;
   touch-action:manipulation!important;
 }
-
-.lmwa-field select option,
-.lmwa-tools select option{
-  background:#fff;
-  color:#1d271f;
+.lmreact-select option{background:#fff;color:#172019}
+.lmreact-input.readonly{
+  border-color:#b8c9bc;
+  background:#eaf2ec;
+  color:#31513a;
+  font-weight:760;
 }
-
-.lmwa-field input.readonly,
-.lmwa-field input[readonly]{
-  border-color:#c8d6cb;
-  background:#eef4ef;
-  color:#31533a;
-  font-weight:700;
-  cursor:default;
+.lmreact-input.recognized{
+  border-color:#8fad96;
+  background:#e2eee5;
+  color:#244d30;
 }
-
-.brand-field.recognized input{
-  border-color:#abc1b0!important;
-  background:#e7f0e9!important;
-  color:#245033!important;
-}
-
-.lmwa-code-field,
-.lmwa-suffix{
+.lmreact-inline{
   display:flex;
-  width:100%;
   gap:8px;
   align-items:center;
 }
-.lmwa-code-field input,
-.lmwa-suffix input{min-width:0;flex:1}
-
-.lmwa-code-field button{
-  height:52px;
-  min-width:106px;
-  padding:0 15px;
-  border:1px solid var(--forest);
-  border-radius:10px;
-  background:var(--forest);
-  color:#fff;
-  cursor:pointer;
-  font-size:9px;
-  font-weight:820;
-  letter-spacing:.07em;
-}
-.lmwa-code-field button:hover{background:var(--forest-2)}
-
-.lmwa-suffix>span:last-child{
+.lmreact-inline .lmreact-input{min-width:0;flex:1}
+.lmreact-addon{
   display:flex;
-  height:52px;
+  height:54px;
   align-items:center;
   justify-content:center;
   padding:0 14px;
-  border:1px solid #c8d6cb;
+  border:2px solid #b8c9bc;
   border-radius:10px;
-  background:#eef4ef;
-  color:#31533a;
-  font-size:10px;
-  font-weight:720;
+  background:#eaf2ec;
+  color:#31513a;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.06em;
 }
 
-/* ---------- Buttons/actions ---------- */
-.lmwa-actions{
+.lmreact-form-actions{
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  padding:16px 18px;
-  border-top:1px solid #e4e8e5;
-  background:#f6f7f5;
+  margin-top:24px;
+  padding-top:18px;
+  border-top:1px solid #e1e5e2;
 }
 
-.lmwa-button{
-  min-height:44px;
-  padding:0 16px;
+.lmreact-btn{
+  min-height:42px;
+  padding:0 14px;
   border-radius:9px;
   cursor:pointer;
   font-size:9px;
-  font-weight:820;
-  letter-spacing:.065em;
-  transition:background .15s ease,border-color .15s ease,transform .15s ease;
+  font-weight:850;
+  letter-spacing:.055em;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease,opacity .15s ease;
 }
-
-.lmwa-button.primary{
-  border:1px solid var(--forest);
+.lmreact-btn:disabled{opacity:.55;cursor:not-allowed}
+.lmreact-btn.secondary{
+  border:1.5px solid #b5c0b7;
+  background:#fff;
+  color:#39463d;
+}
+.lmreact-btn.secondary:hover:not(:disabled){
+  border-color:#7f9184;
+  background:#f7f9f7;
+}
+.lmreact-btn.dark{
+  border:1.5px solid var(--forest);
   background:var(--forest);
   color:#fff;
+  box-shadow:0 6px 14px rgba(35,69,47,.14);
 }
-.lmwa-button.primary:hover{background:var(--forest-2);transform:translateY(-1px)}
-
-.lmwa-button.secondary{
-  border:1px solid #bcc7be;
-  background:#fff;
-  color:#3e4a41;
+.lmreact-btn.dark:hover:not(:disabled){
+  background:var(--forest-2);
+  transform:translateY(-1px);
 }
-.lmwa-button.secondary:hover{border-color:#829388;background:#f8faf8}
-
-.lmwa-button.danger{
-  border:1px solid var(--danger);
+.lmreact-btn.danger{
+  border:1.5px solid var(--danger);
   background:var(--danger);
   color:#fff;
 }
+.lmreact-btn.code-btn{height:54px;min-width:106px}
 
-.lmwa-button.compact{min-height:38px;padding:0 12px}
-.lmwa-button.full{width:100%}
-
-/* ---------- Messages/results ---------- */
-.lmwa-message{
-  margin:14px 0 0;
+.lmreact-message{
+  margin-top:16px;
   padding:12px 14px;
-  border-radius:9px;
-  font-size:11px;
-  font-weight:560;
+  border-radius:10px;
+  font-size:10px;
+  font-weight:650;
   line-height:1.55;
 }
-.lmwa-message.success{border:1px solid #b7cdbb;background:var(--success-bg);color:var(--success)}
-.lmwa-message.error{border:1px solid #dfc1bf;background:var(--danger-bg);color:var(--danger)}
-.lmwa-message.info{border:1px solid #cbd2cc;background:#f1f3f1;color:#536057}
-
-.lmwa-created{
-  margin-top:18px;
-  padding:24px;
-  border:1px solid #b9ccbd;
-  border-radius:14px;
-  background:#eef5ef;
+.lmreact-message.error{
+  border:1.5px solid #dbb9b7;
+  background:var(--danger-bg);
+  color:var(--danger);
 }
-.lmwa-created h3{margin:7px 0 0;color:#244c31;font-size:22px;font-weight:720}
-.lmwa-created>p{margin:7px 0 0;color:#66736a;font-size:11px}
-.lmwa-created-grid{
+.lmreact-message.success{
+  border:1.5px solid #aec7b3;
+  background:var(--success-bg);
+  color:var(--success);
+}
+.lmreact-message.info{
+  border:1.5px solid #c8d0ca;
+  background:#f1f3f1;
+  color:#536057;
+}
+
+.lmreact-created{
+  margin-top:20px;
+  padding:22px;
+  border:1.5px solid #a9c2ae;
+  border-radius:14px;
+  background:#eaf2ec;
+}
+.lmreact-created>span{
+  color:#4d6f56;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.1em;
+}
+.lmreact-created h3{
+  margin:7px 0 0;
+  color:#234a2e;
+  font-size:23px;
+  font-weight:850;
+}
+.lmreact-created>p{
+  margin:6px 0 0;
+  color:#657169;
+  font-size:10px;
+  font-weight:570;
+}
+.lmreact-created>div{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:1px;
-  margin-top:17px;
+  margin-top:15px;
   overflow:hidden;
-  border:1px solid #c8d7cb;
+  border:1px solid #c1d1c4;
   border-radius:10px;
-  background:#c8d7cb;
+  background:#c1d1c4;
 }
-.lmwa-created-grid>div{padding:13px;background:#fff}
-.lmwa-created-grid span,
-.lmwa-created-grid strong,
-.lmwa-created-grid small{display:block}
-.lmwa-created-grid span{color:#818a83;font-size:9px;font-weight:700}
-.lmwa-created-grid strong{margin-top:5px;color:#29352c;font-size:12px;font-weight:680}
-.lmwa-created-grid small{margin-top:4px;color:#387047;font-size:9px}
+.lmreact-created article{padding:12px;background:#fff}
+.lmreact-created small,
+.lmreact-created strong,
+.lmreact-created em{display:block}
+.lmreact-created small{
+  color:#7d867f;
+  font-size:8px;
+  font-style:normal;
+  font-weight:780;
+  text-transform:uppercase;
+}
+.lmreact-created strong{
+  margin-top:5px;
+  color:#28342c;
+  font-size:11px;
+  font-weight:760;
+}
+.lmreact-created em{
+  margin-top:4px;
+  color:#3c6a49;
+  font-size:8px;
+  font-style:normal;
+  font-weight:720;
+}
 
-/* ---------- List ---------- */
-.lmwa-header-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-
-.lmwa-tools{
+/* LIST */
+.lmreact-head-actions{display:flex;gap:7px;flex-wrap:wrap}
+.lmreact-toolbar{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 220px;
+  grid-template-columns:minmax(0,1fr) 210px;
   gap:10px;
+  margin-top:20px;
   padding:12px;
-  border:1px solid var(--line);
-  border-radius:13px;
-  background:#ebeeeb;
+  border:1.5px solid #c7d0c9;
+  border-radius:12px;
+  background:#e9edea;
 }
-
-.lmwa-tools label span{
+.lmreact-toolbar label span{
   display:block;
   margin:0 0 6px 2px;
-  color:#59655d;
+  color:#56625a;
   font-size:9px;
-  font-weight:750;
+  font-weight:800;
 }
-
-.lmwa-tools input,
-.lmwa-tools select{
+.lmreact-toolbar input,
+.lmreact-toolbar select{
   width:100%;
-  height:46px;
+  height:47px;
   padding:0 13px;
-  border:1.5px solid #b5c0b7;
+  border:2px solid #aab7ad;
   border-radius:9px;
   outline:none;
   background:#fff;
-  color:#263129;
+  color:#233027;
   font-size:11px;
-  font-weight:600;
+  font-weight:680;
 }
-.lmwa-tools input:focus,
-.lmwa-tools select:focus{
+.lmreact-toolbar input:focus,
+.lmreact-toolbar select:focus{
   border-color:var(--forest-2);
-  box-shadow:0 0 0 3px rgba(49,93,64,.08);
+  box-shadow:0 0 0 3px rgba(47,90,61,.09);
 }
-
-.lmwa-list-meta{
+.lmreact-toolbar select{
+  -webkit-appearance:menulist!important;
+  appearance:auto!important;
+}
+.lmreact-list-meta{
   margin:13px 2px 8px;
-  color:#7d867f;
+  color:#78837b;
   font-size:10px;
-  font-weight:550;
+  font-weight:620;
 }
-
-.lmwa-list{display:grid;gap:8px}
-
-.lmwa-row{
+.lmreact-records{display:grid;gap:8px}
+.lmreact-record{
   display:grid;
-  grid-template-columns:1.2fr 1.05fr .9fr .8fr auto;
+  grid-template-columns:1.2fr 1.05fr .95fr .82fr auto;
   gap:16px;
   align-items:center;
   padding:16px 17px;
-  border:1px solid #d9dfda;
+  border:1.5px solid #d0d7d1;
   border-radius:12px;
   background:#fff;
   transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease;
 }
-.lmwa-row:hover{
-  border-color:#b6c2b8;
-  box-shadow:0 8px 22px rgba(31,42,34,.05);
+.lmreact-record:hover{
+  border-color:#a9b6ac;
+  box-shadow:0 8px 20px rgba(27,39,30,.045);
   transform:translateY(-1px);
 }
-.lmwa-row>div{min-width:0}
-.lmwa-row-label{
+.lmreact-record>div{min-width:0}
+.lmreact-record span{
   display:block;
   margin-bottom:5px;
-  color:#838c85;
+  color:#7d877f;
   font-size:8px;
-  font-weight:800;
-  letter-spacing:.06em;
-  text-transform:uppercase;
+  font-weight:850;
+  letter-spacing:.055em;
 }
-.lmwa-row strong,
-.lmwa-row small{display:block;overflow:hidden;text-overflow:ellipsis}
-.lmwa-row strong{color:#29332c;font-size:11px;font-weight:680;white-space:nowrap}
-.lmwa-row-main>strong{color:var(--forest);font-size:13px;font-weight:760}
-.lmwa-row small{margin-top:5px;color:#7c857e;font-size:9px;white-space:nowrap}
-
-.lmwa-row-status{display:flex;flex-direction:column;align-items:flex-start}
-.lmwa-status{
-  display:inline-flex;
-  min-height:29px;
-  align-items:center;
-  justify-content:center;
-  padding:0 10px;
-  border-radius:999px;
-  font-size:9px;
-  font-weight:780;
+.lmreact-record strong,
+.lmreact-record small{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
   white-space:nowrap;
 }
-.lmwa-status.activated{
-  border:1px solid #a9c3ae;
-  background:var(--success-bg);
-  color:#29573a;
+.lmreact-record strong{
+  color:#28332b;
+  font-size:11px;
+  font-weight:760;
 }
-.lmwa-status.pending{
-  border:1px solid #d5c6a8;
-  background:var(--pending-bg);
-  color:var(--pending);
+.lmreact-record-main strong{
+  color:var(--forest);
+  font-size:13px;
+  font-weight:850;
 }
-
-.lmwa-row-actions{display:flex;gap:6px}
-.lmwa-row-actions button{
-  min-height:34px;
+.lmreact-record small{
+  margin-top:5px;
+  color:#7b857e;
+  font-size:9px;
+  font-weight:560;
+}
+.lmreact-record-actions{display:flex;gap:6px}
+.lmreact-record-actions .lmreact-btn{min-height:34px;padding:0 10px;font-size:8px}
+.lmreact-status{
+  display:inline-flex!important;
+  width:max-content;
+  min-height:29px;
+  align-items:center;
   padding:0 10px;
-  border-radius:8px;
-  background:#fff;
-  cursor:pointer;
-  font-size:8px;
-  font-weight:800;
+  border-radius:999px;
+  font-size:9px!important;
+  font-weight:820!important;
+  letter-spacing:0!important;
 }
-.lmwa-row-actions .edit{border:1px solid #b8c4ba;color:var(--forest)}
-.lmwa-row-actions .delete{border:1px solid #dfc1bf;color:var(--danger)}
-
-.lmwa-empty{
-  padding:46px 20px;
-  border:1px dashed #cbd3cc;
+.lmreact-status.pending{
+  border:1.5px solid #d2c3a5;
+  background:var(--pending-bg);
+  color:var(--pending)!important;
+}
+.lmreact-status.activated{
+  border:1.5px solid #a6c0ac;
+  background:var(--success-bg);
+  color:var(--success)!important;
+}
+.lmreact-empty{
+  padding:44px 20px;
+  border:1.5px dashed #c6cec8;
   border-radius:12px;
-  background:#f5f6f4;
+  background:#f6f7f5;
   text-align:center;
 }
-.lmwa-empty strong,
-.lmwa-empty span{display:block}
-.lmwa-empty strong{color:#344138;font-size:14px;font-weight:700}
-.lmwa-empty span{margin-top:6px;color:#7d877f;font-size:10px}
+.lmreact-empty strong,
+.lmreact-empty span{display:block}
+.lmreact-empty strong{color:#334038;font-size:13px;font-weight:800}
+.lmreact-empty span{margin-top:6px;color:#7d867f;font-size:10px;font-weight:560}
+.lmreact-skeleton-stack{display:grid;gap:8px}
+.lmreact-skeleton{
+  height:88px;
+  border-radius:12px;
+  background:linear-gradient(90deg,#eef1ee 20%,#f8f9f8 40%,#eef1ee 60%);
+  background-size:200% 100%;
+  animation:lmreactShimmer 1.4s linear infinite;
+}
+@keyframes lmreactShimmer{to{background-position:-200% 0}}
 
-.lmwa-pagination{
+.lmreact-pagination{
   display:flex;
   justify-content:space-between;
-  gap:15px;
   align-items:center;
+  gap:12px;
   margin-top:14px;
   padding:11px 12px;
-  border:1px solid var(--line);
+  border:1.5px solid #d0d7d1;
   border-radius:11px;
-  background:#fff;
-  color:#727c74;
+  background:#f8f9f8;
+  color:#6f7971;
   font-size:10px;
+  font-weight:620;
 }
-.lmwa-pagination nav,
-.lmwa-page-numbers{display:flex;gap:5px;align-items:center}
-.lmwa-pagination button{
-  min-width:34px;
-  height:34px;
-  border:1px solid #c5cdc6;
-  border-radius:7px;
-  background:#fff;
-  color:#3d4a41;
-  cursor:pointer;
-  font-size:8px;
-  font-weight:800;
-}
-.lmwa-pagination button.active{
-  border-color:var(--forest);
-  background:var(--forest);
-  color:#fff;
-}
-.lmwa-ellipsis{padding:0 3px}
+.lmreact-pagination>div{display:flex;gap:6px}
 
-/* ---------- Modal ---------- */
-.lmwa-modal{
+/* MODALS */
+.lmreact-modal{
   position:fixed;
-  z-index:9999;
+  z-index:999999;
   inset:0;
   display:flex;
   align-items:center;
   justify-content:center;
   padding:20px;
 }
-.lmwa-backdrop{
+.lmreact-modal-backdrop{
   position:absolute;
   inset:0;
-  background:rgba(15,22,17,.58);
-  backdrop-filter:blur(3px);
+  background:rgba(13,20,15,.62);
+  backdrop-filter:blur(4px);
 }
-.lmwa-dialog{
+.lmreact-modal-card{
   position:relative;
   z-index:1;
-  width:min(780px,100%);
-  max-height:min(88vh,820px);
+  width:min(820px,100%);
+  max-height:min(88vh,860px);
   overflow:auto;
-  padding:25px;
-  border:1px solid #d6ddd7;
-  border-radius:17px;
+  border:1.5px solid #cbd3cd;
+  border-radius:18px;
   background:#fff;
-  box-shadow:0 30px 90px rgba(9,16,11,.25);
+  box-shadow:0 35px 100px rgba(7,13,9,.28);
 }
-.lmwa-dialog-header{
+.lmreact-modal-head{
   display:flex;
   justify-content:space-between;
-  gap:18px;
+  gap:20px;
   align-items:flex-start;
-  margin-bottom:20px;
+  padding:24px 25px 20px;
+  border-bottom:1px solid #e2e6e3;
 }
-.lmwa-close{
-  min-height:36px;
-  padding:0 11px;
-  border:1px solid #c7d0c9;
-  border-radius:8px;
-  background:#fff;
-  color:#59645c;
-  cursor:pointer;
+.lmreact-modal-head>div>span{
+  color:var(--forest-2);
   font-size:8px;
-  font-weight:800;
+  font-weight:850;
+  letter-spacing:.13em;
 }
-.lmwa-current-status,
-.lmwa-delete-code{
-  margin-bottom:17px;
-  padding:12px 13px;
-  border:1px solid #d9e0da;
-  border-radius:10px;
-  background:#f5f7f5;
+.lmreact-modal-head h2{
+  margin:7px 0 0;
+  color:var(--ink);
+  font-size:24px;
+  font-weight:820;
+  letter-spacing:-.03em;
 }
-.lmwa-current-status span,
-.lmwa-delete-code span{
-  display:block;
-  color:#7c867f;
-  font-size:8px;
-  font-weight:800;
-  text-transform:uppercase;
-  letter-spacing:.07em;
-}
-.lmwa-current-status strong,
-.lmwa-delete-code strong{
-  display:block;
-  margin-top:5px;
-  color:#2c3930;
-  font-size:12px;
-  font-weight:720;
-}
-.lmwa-dialog-actions{
+.lmreact-modal-body{padding:23px 25px}
+.lmreact-modal-foot{
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  margin-top:19px;
+  padding:15px 25px;
+  border-top:1px solid #e2e6e3;
+  background:#f6f7f6;
 }
-.danger-text{color:var(--danger)!important}
-
-/* ---------- Access screens ---------- */
-.lmwa-auth-view{
+.lmreact-edit-status{
   display:flex;
-  min-height:520px;
+  justify-content:space-between;
   align-items:center;
-  justify-content:center;
+  gap:12px;
+  margin-bottom:18px;
+  padding:12px 13px;
+  border:1.5px solid #d0d7d1;
+  border-radius:10px;
+  background:#f5f7f5;
 }
-.lmwa-auth-card{
-  width:min(620px,100%);
+.lmreact-edit-status>span{
+  color:#667169;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.08em;
+}
+.lmreact-delete-copy p{
+  margin:0;
+  color:#69736c;
+  font-size:11px;
+  font-weight:560;
+}
+.lmreact-delete-copy>strong{
+  display:block;
+  margin-top:12px;
+  padding:12px 13px;
+  border:1.5px solid #dabdbb;
+  border-radius:10px;
+  background:#fbf1f0;
+  color:var(--danger);
+  font-size:14px;
+  font-weight:850;
+}
+
+/* AUTH */
+.lmreact-auth-card{
+  max-width:620px;
   padding:36px;
-  border:1px solid #d6ddd7;
+  border:1.5px solid #cad3cc;
   border-radius:18px;
   background:#fff;
-  box-shadow:0 20px 55px rgba(31,42,34,.08);
+  box-shadow:0 22px 60px rgba(27,39,30,.08);
 }
-.lmwa-auth-card h1{
-  margin:10px 0 0;
+.lmreact-auth-card>span{
+  color:var(--forest-2);
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.13em;
+}
+.lmreact-auth-card h1{
+  margin:9px 0 0;
   color:var(--ink);
   font-size:28px;
-  font-weight:750;
-  letter-spacing:-.025em;
+  font-weight:820;
+  letter-spacing:-.03em;
 }
-.lmwa-auth-card>p{
-  margin:11px 0 0;
-  color:#6f7871;
-  font-size:12px;
+.lmreact-auth-card p{
+  margin:10px 0 0;
+  color:#737d75;
+  font-size:11px;
+  font-weight:560;
   line-height:1.65;
 }
-.lmwa-auth-note,
-.lmwa-shopify-auth{
-  margin-top:19px;
-  padding:16px;
-  border:1px solid #d7ded8;
-  border-radius:12px;
-  background:#f4f6f4;
+.lmreact-auth-card shopify-account{display:block;margin-top:18px}
+.lmreact-login-btn{
+  width:100%;
+  min-height:52px;
+  border:1.5px solid var(--forest);
+  border-radius:10px;
+  background:var(--forest);
+  color:#fff;
+  cursor:pointer;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.08em;
 }
-.lmwa-auth-note strong,
-.lmwa-auth-note span{display:block}
-.lmwa-auth-note strong{color:#38463c;font-size:10px;font-weight:760}
-.lmwa-auth-note span{margin-top:5px;color:#727c74;font-size:10px}
-.lmwa-shopify-auth h2{margin:8px 0 0;color:var(--ink);font-size:19px;font-weight:720}
-.lmwa-shopify-auth p{margin:8px 0 0;color:#747d76;font-size:11px;line-height:1.6}
-#lmwa-admin-account{display:block;margin-top:15px}
 
-/* ---------- Responsive ---------- */
+/* RESPONSIVE */
 @media(max-width:980px){
-  .lmwa-row{grid-template-columns:1.15fr 1fr .9fr .78fr}
-  .lmwa-row-actions{
+  .lmreact-workspace{grid-template-columns:180px minmax(0,1fr)}
+  .lmreact-record{grid-template-columns:1.15fr 1fr .9fr .82fr}
+  .lmreact-record-actions{
     grid-column:1/-1;
     justify-content:flex-end;
     padding-top:10px;
@@ -1951,71 +1794,88 @@ loadWarranties();
 }
 
 @media(max-width:760px){
-  .lmwa{padding:18px 10px 48px}
-  .lmwa-top{
+  .lmreact-shell{padding:17px 9px 48px}
+  .lmreact-hero{
     grid-template-columns:1fr;
-    padding:26px 20px;
-    border-radius:15px;
+    padding:27px 20px;
+    border-radius:16px;
   }
-  .lmwa-user{width:100%}
-  .lmwa-stats{gap:7px}
-  .lmwa-stat{padding:15px 12px;border-radius:11px}
-  .lmwa-stat strong{font-size:25px}
-  .lmwa-stat span{font-size:8px}
-  .lmwa-stat small{font-size:8px}
-  .lmwa-section-header,
-  .lmwa-list-header{align-items:flex-start;flex-direction:column}
-  .lmwa-section-header>p{max-width:none}
-  .lmwa-grid.two{grid-template-columns:1fr}
-  .lmwa-field.full{grid-column:auto}
-  .lmwa-form-card{padding:22px 16px 23px}
-  .lmwa-created-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .lmwa-tools{grid-template-columns:1fr}
-  .lmwa-row{
+  .lmreact-hero h1{font-size:35px}
+  .lmreact-account{width:100%}
+  .lmreact-stats{gap:7px}
+  .lmreact-stat{padding:14px 11px;border-radius:11px}
+  .lmreact-stat strong{font-size:25px}
+  .lmreact-stat small{font-size:8px}
+  .lmreact-workspace{grid-template-columns:1fr}
+  .lmreact-nav{
+    position:static;
+    grid-template-columns:1fr 1fr;
+  }
+  .lmreact-nav button{min-height:58px}
+  .lmreact-content{border-radius:14px}
+  .lmreact-panel{padding:22px 16px}
+  .lmreact-panel-head{align-items:flex-start;flex-direction:column}
+  .lmreact-grid.two{grid-template-columns:1fr}
+  .lmreact-field.full{grid-column:auto}
+  .lmreact-toolbar{grid-template-columns:1fr}
+  .lmreact-created>div{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lmreact-record{
     grid-template-columns:1fr 1fr;
     gap:13px;
   }
-  .lmwa-row-main{
+  .lmreact-record-main{
     grid-column:1/-1;
-    padding-bottom:11px;
-    border-bottom:1px solid #e5e8e6;
+    padding-bottom:10px;
+    border-bottom:1px solid #e3e7e4;
   }
-  .lmwa-row-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-  }
-  .lmwa-pagination{
-    align-items:flex-start;
-    flex-direction:column;
-  }
-  .lmwa-dialog{
-    padding:20px 15px;
-  }
+  .lmreact-modal-card{border-radius:15px}
 }
 
 @media(max-width:480px){
-  .lmwa-top h1{font-size:29px}
-  .lmwa-top p{font-size:11px}
-  .lmwa-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .lmwa-stat{min-height:91px;padding:13px 9px}
-  .lmwa-stat strong{font-size:23px}
-  .lmwa-stat small{display:none}
-  .lmwa-tabs{width:100%}
-  .lmwa-tab{flex:1;padding:0 8px}
-  .lmwa-form-title small{font-size:9px}
-  .lmwa-field input,
-  .lmwa-field select{height:50px;font-size:16px}
-  .lmwa-code-field button{height:50px;min-width:88px}
-  .lmwa-suffix>span:last-child{height:50px}
-  .lmwa-actions{
+  .lmreact-hero h1{font-size:31px}
+  .lmreact-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lmreact-stat{min-height:90px;padding:12px 8px}
+  .lmreact-stat span{font-size:7px}
+  .lmreact-stat strong{font-size:22px}
+  .lmreact-stat small{display:none}
+  .lmreact-nav{padding:6px}
+  .lmreact-nav button{
+    grid-template-columns:29px 1fr;
+    min-height:54px;
+    padding:9px;
+  }
+  .lmreact-nav button>span{width:29px;height:29px}
+  .lmreact-nav button small{display:none}
+  .lmreact-panel{padding:20px 12px}
+  .lmreact-panel-head h2{font-size:25px}
+  .lmreact-input,
+  .lmreact-select{height:51px;font-size:16px}
+  .lmreact-addon,
+  .lmreact-btn.code-btn{height:51px}
+  .lmreact-form-actions{
     flex-direction:column-reverse;
   }
-  .lmwa-actions .lmwa-button{width:100%}
-  .lmwa-created-grid{grid-template-columns:1fr}
-  .lmwa-row{grid-template-columns:1fr}
-  .lmwa-row-main,
-  .lmwa-row-actions{grid-column:auto}
-  .lmwa-dialog-actions{flex-direction:column-reverse}
-  .lmwa-dialog-actions .lmwa-button{width:100%}
+  .lmreact-form-actions .lmreact-btn{width:100%}
+  .lmreact-created>div{grid-template-columns:1fr}
+  .lmreact-record{grid-template-columns:1fr}
+  .lmreact-record-main,
+  .lmreact-record-actions{grid-column:auto}
+  .lmreact-record-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .lmreact-pagination{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .lmreact-modal{padding:7px}
+  .lmreact-modal-head{padding:20px 15px 17px}
+  .lmreact-modal-body{padding:18px 15px}
+  .lmreact-modal-foot{
+    padding:12px 15px;
+    flex-direction:column-reverse;
+  }
+  .lmreact-modal-foot .lmreact-btn{width:100%}
 }
+
 </style>
